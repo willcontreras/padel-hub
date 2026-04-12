@@ -590,7 +590,7 @@ function dbg(msg){console.log("[dbg]",msg);const el=document.getElementById("deb
     <div class="fg"><label class="lbl">Fecha</label><input type="date" id="nt-fecha"/></div>
   </div>
   <div class="form-row" style="margin-bottom:8px">
-    <div class="fg"><label class="lbl">Canchas disponibles <span style="font-weight:400;opacity:.6">(opcional)</span></label><input type="number" id="nt-canchas" placeholder="Ej: 3" min="0" max="20" inputmode="numeric"/></div>
+    <div class="fg"><label class="lbl">Canchas disponibles <span style="font-weight:400;opacity:.6">(opcional)</span></label><input type="number" id="nt-canchas" placeholder="Ej: 3" min="0" max="20" inputmode="numeric" oninput="if(typeof rrCalcular!=='undefined'&&selFmtVal==='roundrobin')rrCalcular()"/></div>
   </div>
   <div style="margin-bottom:8px"><label class="lbl">Formato</label>
   <div class="fmt-grid">
@@ -598,7 +598,17 @@ function dbg(msg){console.log("[dbg]",msg);const el=document.getElementById("deb
     <div class="fmt-btn" data-fmt="todos" onclick="selFmt(this)"><div class="fmt-name">Todos contra todos</div><div class="fmt-desc">Parejas fijas</div></div>
     <div class="fmt-btn" data-fmt="grupos" onclick="selFmt(this)"><div class="fmt-name">Grupos + eliminatorias</div><div class="fmt-desc">Fase de grupos y cuadro</div></div>
     <div class="fmt-btn" data-fmt="eliminacion" onclick="selFmt(this)"><div class="fmt-name">Eliminación directa</div><div class="fmt-desc">Cuadro de llaves</div></div>
+    <div class="fmt-btn" data-fmt="roundrobin" onclick="selFmt(this)"><div class="fmt-name">Round Robin</div><div class="fmt-desc">Parejas fijas + final por puesto</div></div>
   </div></div>
+
+  <!-- Opciones Round Robin (visible solo cuando se selecciona ese formato) -->
+  <div id="rr-opciones" style="display:none;margin-bottom:12px;background:var(--color-background-secondary,#f1efe8);border-radius:10px;padding:12px">
+    <div class="form-row" style="margin-bottom:8px">
+      <div class="fg"><label class="lbl">Tiempo total disponible (min)</label><input type="number" id="rr-tiempo" value="120" min="40" max="600" inputmode="numeric" oninput="rrCalcular()"/></div>
+      <div class="fg"><label class="lbl">Duración por partido (min)</label><input type="number" id="rr-duracion" value="30" min="20" max="90" inputmode="numeric" oninput="rrCalcular()"/></div>
+    </div>
+    <div id="rr-preview" style="font-size:12px;color:var(--color-text-secondary,#888780)"></div>
+  </div>
   <div class="fg">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <label class="lbl" style="margin-bottom:0">Parejas <span id="nt-pareja-count" style="font-size:11px;color:var(--color-text-secondary,#888780);font-weight:400">(mín. 2)</span></label>

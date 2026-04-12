@@ -263,34 +263,10 @@ function renderHome(){
   const años=perfil.desde?Math.floor((Date.now()-new Date(perfil.desde))/(1000*60*60*24*365)):null;
   const desdeStr=años!==null?(años===0?'Este año':años===1?'1 año':`${años} años`):'';
 
-  // Mini scores para FIFA card (desde perfil guardado)
-  const scores_def = perfil.ratingGeneral ? (ud._scoresCache?.defensa ?? '—') : '—';
-  const scores_glo = perfil.ratingGeneral ? (ud._scoresCache?.globo   ?? '—') : '—';
-  const scores_vol = perfil.ratingGeneral ? (ud._scoresCache?.volea   ?? '—') : '—';
-  const scores_aer = perfil.ratingGeneral ? (ud._scoresCache?.aereo   ?? '—') : '—';
-  const scores_fis = perfil.ratingGeneral ? (ud._scoresCache?.fisico  ?? '—') : '—';
-  const scores_men = perfil.ratingGeneral ? (ud._scoresCache?.mental  ?? '—') : '—';
-
   document.getElementById('home-dashboard').innerHTML=`
     <!-- Perfil -->
     <div class="dash-perfil" onclick="goTo('perfil')" style="cursor:pointer">
-      <!-- Mini card FIFA -->
-      <div class="fifa-card">
-        <div class="fifa-top">
-          <div class="fifa-rating">${perfil.ratingGeneral||'—'}</div>
-          <div class="fifa-pos">${perfil.posicion?perfil.posicion.slice(0,3).toUpperCase():''}</div>
-        </div>
-        <div class="fifa-photo" style="${u?.photoURL?'':`background:#1D3A6E;display:flex;align-items:center;justify-content:center`}">
-          ${u?.photoURL
-            ?`<img src="${u.photoURL}" referrerpolicy="no-referrer"/>`
-            :`<span style="font-size:22px;font-weight:700;color:#C9960C">${apodo.slice(0,2)}</span>`}
-        </div>
-        <div class="fifa-name">${apodo}</div>
-        <div class="fifa-stats">
-          ${[['DEF',scores_def],['GLO',scores_glo],['VOL',scores_vol],['AER',scores_aer],['FIS',scores_fis],['MEN',scores_men]].map(([k,v])=>`<div class="fifa-stat"><span class="fifa-stat-val">${v||'—'}</span><span class="fifa-stat-lbl">${k}</span></div>`).join('')}
-        </div>
-      </div>
-      <!-- Info derecha -->
+      <div class="dash-av" style="${u?.photoURL?'':`background:#E1F5EE;color:#0F6E56`}">${avatarHTML}</div>
       <div class="dash-pinfo">
         <div class="dash-pname">${apodo}</div>
         <div class="dash-badges">
@@ -298,6 +274,7 @@ function renderHome(){
           ${perfil.posicion?`<span class="dash-badge db-pos">${perfil.posicion}</span>`:''}
           ${perfil.club?`<span class="dash-badge db-club">📍 ${perfil.club}</span>`:''}
           ${desdeStr?`<span class="dash-badge db-desde">${desdeStr} jugando</span>`:''}
+          ${perfil.ratingGeneral?`<span class="dash-badge" style="background:#C9960C22;color:#C9960C;border:0.5px solid #C9960C55;font-weight:700">${perfil.ratingGeneral} ★</span>`:''}
         </div>
       </div>
       <button class="dash-edit" onclick="event.stopPropagation();goTo('perfil')">Editar</button>

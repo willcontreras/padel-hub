@@ -97,7 +97,71 @@ function renderRankingPage(){
 function posC(i){return `<span style="width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;background:${i<3?POD[i]+'22':'#f1efe8'};color:${i<3?POD[i]:'#888780'}">${i+1}</span>`;}
 
 // TORNEOS
-function selFmt(el){document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');selFmtVal=el.dataset.fmt;}
+function selFmt(el){
+  document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  selFmtVal=el.dataset.fmt;
+  const rrOpts=document.getElementById('rr-opciones');
+  if(rrOpts) rrOpts.style.display=selFmtVal==='roundrobin'?'block':'none';
+  if(selFmtVal==='roundrobin') rrCalcular();
+}
+
+// ── Round Robin: cálculo en tiempo real ──
+function rrCalcular(){
+  const preview=document.getElementById('rr-preview');
+  if(!preview) return;
+  const tiempo=parseInt(document.getElementById('rr-tiempo')?.value)||120;
+  const duracion=parseInt(document.getElementById('rr-duracion')?.value)||30;
+  const canchas=parseInt(document.getElementById('nt-canchas')?.value)||0;
+  const parejas=document.getElementById('nt-parejas-lista')?.querySelectorAll('[data-idx]').length||0;
+
+  // Validar duración
+  if(duracion<20||duracion>90){
+    preview.innerHTML=`<span style="color:#D85A30">⚠ La duración debe estar entre 20 y 90 minutos.</span>`;return;
+  }
+  // Necesitamos al menos 2 partidos: 1 fase + 1 final
+  if(tiempo<duracion*2){
+    preview.innerHTML=`<span style="color:#D85A30">⚠ Tiempo insuficiente. Con partidos de ${duracion} min necesitas al menos ${duracion*2} min totales.</span>`;return;
+  }
+
+  const rondasFase=Math.floor((tiempo-duracion)/duracion);
+
+  // Validar canchas y parejas
+  if(canchas>0&&parejas>0){
+    if(parejas%2!==0){
+      const sug=parejas+1;
+      preview.innerHTML=`<span style="color:#D85A30">⚠ Necesitas un número par de parejas. Agrega 1 pareja más (total: ${sug}).</span>`;return;
+    }
+    const canchasNecesarias=parejas/2;
+    if(canchas!==canchasNecesarias){
+      preview.innerHTML=`<span style="color:#D85A30">⚠ Con ${parejas} parejas necesitas exactamente ${canchasNecesarias} canchas (tienes ${canchas}).</span>`;return;
+    }
+  }
+
+  const tiempoFase=rondasFase*duracion;
+  const tiempoFinal=duracion;
+  const total=tiempoFase+tiempoFinal;
+
+  preview.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px">
+      <div style="background:var(--color-background-primary,#fff);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:18px;font-weight:600;color:var(--color-text-primary,#1a1a18)">${rondasFase}</div>
+        <div style="font-size:10px;color:var(--color-text-secondary,#888780)">Rondas de fase</div>
+      </div>
+      <div style="background:var(--color-background-primary,#fff);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:18px;font-weight:600;color:#BA7517">1</div>
+        <div style="font-size:10px;color:var(--color-text-secondary,#888780)">Ronda final</div>
+      </div>
+      <div style="background:var(--color-background-primary,#fff);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:18px;font-weight:600;color:#1D9E75">${total} min</div>
+        <div style="font-size:10px;color:var(--color-text-secondary,#888780)">Tiempo total</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--color-text-secondary,#888780)">
+      ${rondasFase} × ${duracion} min (fase) + ${duracion} min (final) = ${total} min
+      ${total<tiempo?` · <span style="color:#1D9E75">${tiempo-total} min de margen</span>`:''}
+    </div>`;
+}
 
 // ── Pair input management ──
 function ntAgregarPareja(){
@@ -121,6 +185,7 @@ function ntActualizarContador(){
   const n=lista.querySelectorAll('[data-idx]').length;
   const el=document.getElementById('nt-pareja-count');
   if(el)el.textContent=`(${n} pareja${n!==1?'s':''}, mín. 2)`;
+  if(selFmtVal==='roundrobin') rrCalcular();
 }
 function ntGetParejas(){
   const lista=document.getElementById('nt-parejas-lista');if(!lista)return[];
@@ -153,6 +218,82 @@ async function crearTorneo(){
   if(selFmtVal==='americano'){const n=jugadores.length;for(let i=0;i<n-1;i++)for(let j=i+1;j<n;j++)partidos.push({id:partidos.length+1,eq1:`${jugadores[i]} / ${jugadores[(i+1)%n]}`,eq2:`${jugadores[j]} / ${jugadores[(j+1)%n]}`,s1a:null,s1b:null,jugado:false,ganadorA:null});}
   else if(selFmtVal==='todos'){for(let i=0;i<jugadores.length-1;i++)for(let j=i+1;j<jugadores.length;j++)partidos.push({id:partidos.length+1,eq1:jugadores[i],eq2:jugadores[j],s1a:null,s1b:null,jugado:false,ganadorA:null});}
   else if(selFmtVal==='eliminacion'){const n=Math.pow(2,Math.ceil(Math.log2(jugadores.length)));for(let i=0;i<n/2;i++)partidos.push({id:i+1,eq1:jugadores[i*2]||'Libre',eq2:jugadores[i*2+1]||'Libre',s1a:null,s1b:null,jugado:false,ganadorA:null});}
+  else if(selFmtVal==='roundrobin'){
+    const tiempo=parseInt(document.getElementById('rr-tiempo')?.value)||120;
+    const duracion=parseInt(document.getElementById('rr-duracion')?.value)||30;
+    const canchas=numCanchas||jugadores.length/2;
+
+    // Validaciones
+    if(duracion<20||duracion>90){toast('La duración debe estar entre 20 y 90 minutos');return;}
+    if(tiempo<duracion*2){toast('Tiempo insuficiente para este formato');return;}
+    if(jugadores.length%2!==0){toast('Round Robin requiere un número par de parejas');return;}
+    if(numCanchas>0&&numCanchas!==jugadores.length/2){toast(`Con ${jugadores.length} parejas necesitas ${jugadores.length/2} canchas`);return;}
+
+    const rondasFase=Math.floor((tiempo-duracion)/duracion);
+    const n=jugadores.length;
+
+    // Algoritmo de polígono (round-robin scheduling)
+    // Fija el último equipo y rota los demás
+    const lista=[...jugadores];
+    const fijo=lista.pop(); // el último queda fijo
+    const rrRondas=[];
+
+    for(let r=0;r<Math.min(rondasFase,n-1);r++){
+      const ronda=[];
+      // Partido: fijo vs lista[0]
+      ronda.push({eq1:fijo,eq2:lista[0]});
+      // Partidos restantes: lista[1] vs lista[n-2], lista[2] vs lista[n-3]...
+      for(let i=1;i<Math.floor(n/2);i++){
+        ronda.push({eq1:lista[i],eq2:lista[n-1-i]});
+      }
+      rrRondas.push(ronda);
+      // Rotar lista: el último va al frente
+      lista.unshift(lista.pop());
+    }
+
+    // Generar partidos de fase
+    rrRondas.forEach((ronda,ri)=>{
+      ronda.forEach((p,ci)=>{
+        partidos.push({
+          id:partidos.length+1,
+          eq1:p.eq1,eq2:p.eq2,
+          s1a:null,s1b:null,jugado:false,ganadorA:null,
+          ronda:ri+1,cancha:ci+1,
+          esFase:true
+        });
+      });
+    });
+
+    // Fase final: 1 ronda de partidos por puesto (placeholder, se rellena al terminar fase)
+    // Por ahora generamos N/2 partidos finales vacíos con etiquetas
+    const puestos=[];
+    for(let i=0;i<n/2;i++){
+      puestos.push({
+        id:partidos.length+1,
+        eq1:`${i*2+1}° clasificado`,eq2:`${i*2+2}° clasificado`,
+        s1a:null,s1b:null,jugado:false,ganadorA:null,
+        ronda:rondasFase+1,cancha:i+1,
+        esFinal:true,
+        puesto:`${i*2+1}°-${i*2+2}°`
+      });
+    }
+    partidos.push(...puestos);
+
+    // Guardar metadata RR en el torneo
+    userData.torneos?.unshift({
+      id:'t'+Date.now(),nombre,fecha,
+      formato:'roundrobin',
+      scoring:selScoringVal||'games',
+      publico:selVisibilidadVal==='publico',
+      creadoPor:creadorUid,adminsTorneo:[],
+      jugadores,partidos,grupos:[],equipoUids,
+      rrConfig:{tiempo,duracion,rondasFase},
+      ...(numCanchas>0?{numCanchas}:{})
+    });
+    await saveData();closeModal('m-torneo');curTorneoIdx=-1;renderTorneo();toast('Torneo Round Robin creado');
+    return;
+  }
+
   else{
     // Distribuir jugadores en grupos de forma balanceada
     const LETRAS=['A','B','C','D','E','F'];
@@ -307,8 +448,191 @@ function _renderPlayoffs(t){
   h+=`</div>`;
   return h;
 }
+function _renderPartidoRR(p,t,canEdit){
+  const jugado=p.jugado;
+  const scoreStr=jugado?`${p.s1a}-${p.s1b}`:'—';
+  const winA=jugado&&p.ganadorA,winB=jugado&&!p.ganadorA;
+  const canchaStr=p.cancha?`C${p.cancha}`:'';
+  const puedeCargar=canEdit&&!jugado&&p.eq1&&!p.eq1.includes('°');
+  const esFinal=p.esFinal;
+  return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--color-background-primary,#fff);border-radius:9px;border:0.5px solid ${esFinal?'#BA751733':'var(--color-border-tertiary,#e5e4df)'};margin-bottom:5px;${puedeCargar?'cursor:pointer':''}${jugado?';opacity:.85':''}" ${puedeCargar?`onclick="_abrirResultadoRR('${t.id}','${p.id}')"`:''}
+    onmouseover="${puedeCargar?"this.style.background='var(--color-background-secondary,#f1efe8)'":''}"
+    onmouseout="${puedeCargar?"this.style.background='var(--color-background-primary,#fff)'":""}">
+    ${canchaStr?`<span style="font-size:9px;background:var(--color-background-secondary,#f1efe8);color:var(--color-text-secondary,#888780);border-radius:4px;padding:2px 5px;flex-shrink:0">${canchaStr}</span>`:''}
+    <div style="flex:1;display:flex;align-items:center;gap:6px;min-width:0">
+      <span style="font-size:12px;color:${winA?'var(--g,#1D9E75)':winB?'var(--color-text-secondary,#888780)':'var(--color-text-primary,#1a1a18)'};font-weight:${winA?'600':'400'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_apodoCorto(p.eq1)}</span>
+      <span style="font-size:12px;font-weight:600;color:${jugado?'var(--color-text-primary,#1a1a18)':'var(--color-text-secondary,#888780)'};flex-shrink:0;min-width:32px;text-align:center">${scoreStr}</span>
+      <span style="font-size:12px;color:${winB?'var(--g,#1D9E75)':winA?'var(--color-text-secondary,#888780)':'var(--color-text-primary,#1a1a18)'};font-weight:${winB?'600':'400'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">${_apodoCorto(p.eq2)}</span>
+    </div>
+    ${!jugado&&puedeCargar?`<span style="font-size:10px;color:var(--color-text-secondary,#888780);flex-shrink:0">+ resultado</span>`:''}
+    ${jugado?`<span style="font-size:10px;color:var(--g,#1D9E75);flex-shrink:0">✓</span>`:''}
+  </div>`;
+}
+
+async function _abrirResultadoRR(tid,partidoId){
+  const t=_findTorneo(tid);
+  if(!t)return;
+  const p=t.partidos.find(x=>String(x.id)===String(partidoId));
+  if(!p)return;
+
+  const sheet=document.createElement('div');
+  sheet.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:flex-end;justify-content:center';
+  sheet.onclick=e=>{if(e.target===sheet)sheet.remove();};
+  sheet.innerHTML=`<div style="background:var(--color-background-primary,#fff);border-radius:18px 18px 0 0;padding:20px 18px 32px;width:100%;max-width:600px;box-sizing:border-box">
+    <div style="width:36px;height:4px;border-radius:2px;background:var(--color-border-secondary,#d3d1c7);margin:0 auto 16px"></div>
+    <div style="font-size:14px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">Resultado</div>
+    <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:14px">${_apodoCorto(p.eq1)} vs ${_apodoCorto(p.eq2)}</div>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:16px">
+      <div style="text-align:center">
+        <div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18);margin-bottom:6px">${_apodoCorto(p.eq1)}</div>
+        <input type="number" id="rr-s1a" min="0" max="99" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/>
+      </div>
+      <div style="font-size:14px;font-weight:700;color:var(--color-text-secondary,#888780);text-align:center">VS</div>
+      <div style="text-align:center">
+        <div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18);margin-bottom:6px">${_apodoCorto(p.eq2)}</div>
+        <input type="number" id="rr-s1b" min="0" max="99" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="guardarResultadoRR('${tid}','${partidoId}',this.closest('div[style*=fixed]'))" style="flex:1;background:var(--g,#1D9E75);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Guardar</button>
+      <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:12px 16px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:10px;background:none;font-size:14px;cursor:pointer;font-family:inherit;color:var(--color-text-secondary,#888780)">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(sheet);
+  setTimeout(()=>document.getElementById('rr-s1a')?.focus(),100);
+}
+
+async function guardarResultadoRR(tid,partidoId,sheet){
+  const t=_findTorneo(tid);
+  if(!t)return;
+  const p=t.partidos.find(x=>String(x.id)===String(partidoId));
+  if(!p)return;
+  const a=parseInt(document.getElementById('rr-s1a')?.value);
+  const b=parseInt(document.getElementById('rr-s1b')?.value);
+  if(isNaN(a)||isNaN(b)){toast('Ingresa el resultado');return;}
+  if(a===b){toast('No puede terminar empatado');return;}
+  p.s1a=a;p.s1b=b;p.jugado=true;p.ganadorA=a>b;
+
+  // Si es partido de fase, actualizar finales con clasificados reales
+  if(p.esFase){
+    _actualizarFinalesRR(t);
+  }
+
+  await saveData();
+  sheet?.remove();
+  renderTorneo();
+  toast('Resultado guardado');
+}
+
+function _actualizarFinalesRR(t){
+  const fasePartidos=t.partidos.filter(p=>p.esFase);
+  const rondasFase=t.rrConfig?.rondasFase||0;
+  const todasJugadas=fasePartidos.filter(p=>p.jugado).length===fasePartidos.length;
+  if(!todasJugadas) return; // solo actualizar cuando termina la fase
+
+  // Calcular standings
+  const pts={};
+  t.jugadores.forEach(j=>{pts[j]={nombre:j,pg:0,pp:0,gamesA:0,gamesB:0};});
+  fasePartidos.forEach(p=>{
+    if(!p.jugado)return;
+    const sc=t.scoring||'games';
+    pts[p.eq1].gamesA+=(p.s1a||0);pts[p.eq1].gamesB+=(p.s1b||0);
+    pts[p.eq2].gamesA+=(p.s1b||0);pts[p.eq2].gamesB+=(p.s1a||0);
+    if(p.ganadorA){pts[p.eq1].pg++;pts[p.eq2].pp++;}
+    else{pts[p.eq2].pg++;pts[p.eq1].pp++;}
+  });
+  const ranked=Object.values(pts).sort((a,b)=>(b.gamesA-b.gamesB)-(a.gamesA-a.gamesB)||b.pg-a.pg);
+
+  // Asignar clasificados a finales
+  const finalPartidos=t.partidos.filter(p=>p.esFinal);
+  finalPartidos.forEach((fp,i)=>{
+    fp.eq1=ranked[i*2]?.nombre||fp.eq1;
+    fp.eq2=ranked[i*2+1]?.nombre||fp.eq2;
+  });
+}
+
 function _renderTorneoDetalle(t,canEdit){
   let h='';
+
+  // ── Round Robin ──
+  if(t.formato==='roundrobin'){
+    const cfg=t.rrConfig||{};
+    const duracion=cfg.duracion||30;
+    const rondasFase=cfg.rondasFase||0;
+    const partidos=t.partidos||[];
+    const fasePartidos=partidos.filter(p=>p.esFase);
+    const finalPartidos=partidos.filter(p=>p.esFinal);
+
+    // Calcular standings de fase
+    const pts={};
+    t.jugadores.forEach(j=>{pts[j]={nombre:j,pg:0,pp:0,pj:0,gamesA:0,gamesB:0};});
+    fasePartidos.filter(p=>p.jugado).forEach(p=>{
+      const sc=t.scoring||'games';
+      if(!pts[p.eq1])pts[p.eq1]={nombre:p.eq1,pg:0,pp:0,pj:0,gamesA:0,gamesB:0};
+      if(!pts[p.eq2])pts[p.eq2]={nombre:p.eq2,pg:0,pp:0,pj:0,gamesA:0,gamesB:0};
+      pts[p.eq1].pj++; pts[p.eq2].pj++;
+      if(sc==='games'){
+        pts[p.eq1].gamesA+=(p.s1a||0); pts[p.eq1].gamesB+=(p.s1b||0);
+        pts[p.eq2].gamesA+=(p.s1b||0); pts[p.eq2].gamesB+=(p.s1a||0);
+        if((p.s1a||0)>(p.s1b||0)){pts[p.eq1].pg++;pts[p.eq2].pp++;}
+        else{pts[p.eq2].pg++;pts[p.eq1].pp++;}
+      } else {
+        if(p.ganadorA){pts[p.eq1].pg+=3;pts[p.eq2].pp++;}
+        else{pts[p.eq2].pg+=3;pts[p.eq1].pp++;}
+      }
+    });
+    const ranked=Object.values(pts).sort((a,b)=>{
+      const sc=t.scoring||'games';
+      if(sc==='games') return (b.gamesA-b.gamesB)-(a.gamesA-a.gamesB)||b.pg-a.pg;
+      return b.pg-a.pg||b.pj-a.pj;
+    });
+
+    // Tabla de standings
+    h+=`<div style="margin-bottom:12px">`;
+    h+=`<div style="font-size:11px;font-weight:600;color:var(--color-text-secondary,#888780);letter-spacing:.5px;margin-bottom:6px">CLASIFICACIÓN</div>`;
+    h+=`<div style="background:var(--color-background-secondary,#f1efe8);border-radius:10px;overflow:hidden">`;
+    ranked.forEach((r,i)=>{
+      const uids=t.equipoUids?.[r.nombre]||[];
+      const parts=r.nombre.includes(' - ')?r.nombre.split(' - '):[r.nombre];
+      const nameHTML=parts.map((p,pi)=>{
+        const uid=uids[pi];
+        return uid?`<span onclick="verJugador('${uid}')" class="player-linked">${_apodoCorto(p.trim())}</span>`:_apodoCorto(p.trim());
+      }).join(' - ');
+      const sc=t.scoring||'games';
+      const stat=sc==='games'?`${r.gamesA}-${r.gamesB} games`:`${r.pg} pts`;
+      h+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary,#e5e4df)">
+        <span style="width:18px;height:18px;border-radius:50%;background:${i<2?'#C9960C22':'#f1efe8'};color:${i<2?'#C9960C':'#888780'};font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
+        <span style="flex:1;font-size:12px;color:var(--color-text-primary,#1a1a18)">${nameHTML}</span>
+        <span style="font-size:11px;color:var(--color-text-secondary,#888780)">${r.pj}PJ · ${stat}</span>
+      </div>`;
+    });
+    h+=`</div></div>`;
+
+    // Rondas de fase
+    for(let r=1;r<=rondasFase;r++){
+      const rPartidos=fasePartidos.filter(p=>p.ronda===r);
+      if(!rPartidos.length) continue;
+      const jugados=rPartidos.filter(p=>p.jugado).length;
+      h+=`<div style="margin-bottom:10px">`;
+      h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;font-weight:600;color:var(--color-text-secondary,#888780);letter-spacing:.5px">RONDA ${r} · ${duracion} min</span>
+        <span style="font-size:10px;color:var(--color-text-secondary,#888780)">${jugados}/${rPartidos.length} jugados</span>
+      </div>`;
+      rPartidos.forEach(p=>{ h+=_renderPartidoRR(p,t,canEdit); });
+      h+=`</div>`;
+    }
+
+    // Fase final
+    if(finalPartidos.length){
+      h+=`<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--color-border-tertiary,#e5e4df)">`;
+      h+=`<div style="font-size:11px;font-weight:600;color:#BA7517;letter-spacing:.5px;margin-bottom:8px">⚡ FASE FINAL · ${duracion} min</div>`;
+      finalPartidos.forEach(p=>{ h+=_renderPartidoRR(p,t,canEdit); });
+      h+=`</div>`;
+    }
+
+    return h;
+  }
+
   if(t.formato==='grupos'&&t.grupos){
     const sc=t.scoring||'games';
     const scLabel=sc==='games'?'Games':'Pts';
@@ -522,8 +846,8 @@ async function renderTorneo(){
   const torneos=userData.torneos||[];
   const el=document.getElementById('torneo-content');
   if(!torneos.length){el.innerHTML='<div class="empty">No hay torneos. Crea uno \u2192</div>';return;}
-  const fmtN={americano:'Americano',todos:'Todos vs todos',grupos:'Grupos + Elim.',eliminacion:'Eliminaci\u00f3n directa'};
-  const fmtIcon={americano:'\ud83d\udd04',todos:'\u2694\ufe0f',grupos:'\ud83c\udfc6',eliminacion:'\ud83c\udfaf'};
+  const fmtN={americano:'Americano',todos:'Todos vs todos',grupos:'Grupos + Elim.',eliminacion:'Eliminaci\u00f3n directa',roundrobin:'Round Robin'};
+  const fmtIcon={americano:'\ud83d\udd04',todos:'\u2694\ufe0f',grupos:'\ud83c\udfc6',eliminacion:'\ud83c\udfaf',roundrobin:'\ud83d\udd04'};
   let html='';
   torneos.forEach((t,i)=>{
     const puedeBorrar=CURRENT_USER?.uid===ADMIN_UID||t.creadoPor===CURRENT_USER?.uid||(t.adminsTorneo||[]).includes(CURRENT_USER?.uid);
@@ -1336,7 +1660,7 @@ async function renderTorneosPublicos(){
     snap.forEach(doc=>{const data=doc.data();(data.torneos||[]).filter(t=>t.publico).forEach(t=>{_torneosPublicosCache.push({...t,_ownerName:data.perfil?.apodo||'Usuario'});});});
     if(!_torneosPublicosCache.length){el.innerHTML='<div class="empty">No hay torneos p\u00fablicos por ahora</div>';return;}
     _torneosPublicosCache.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    const fmtN={americano:'Americano',todos:'Todos vs todos',grupos:'Grupos + Elim.',eliminacion:'Eliminaci\u00f3n directa'};
+    const fmtN={americano:'Americano',todos:'Todos vs todos',grupos:'Grupos + Elim.',eliminacion:'Eliminaci\u00f3n directa',roundrobin:'Round Robin'};
     el.innerHTML=_torneosPublicosCache.map((t,i)=>{
       const jugados=t.partidos?.filter(p=>p.jugado).length||0,total=t.partidos?.length||0,pct=total?Math.round(jugados/total*100):0;
       return `<div onclick="abrirTorneoPublico(${i})" style="background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;margin-bottom:10px;padding:12px 14px;cursor:pointer" onmouseover="this.style.borderColor='var(--g,#1D9E75)'" onmouseout="this.style.borderColor='var(--color-border-tertiary,#e5e4df)'">
