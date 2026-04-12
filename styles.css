@@ -276,4 +276,16 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .val-attr-row span:first-child{min-width:130px;flex-shrink:0}
 .val-attr-row input[type=range]{flex:1}
 .val-num{min-width:24px;text-align:right;font-weight:500;color:var(--color-text-primary,#1a1a18)}
+
+.fifa-card{width:72px;flex-shrink:0;background:linear-gradient(160deg,#1a3a6e,#0a1e42);border-radius:10px;overflow:hidden;border:0.5px solid #C9960C55;position:relative;cursor:pointer}
+.fifa-top{display:flex;flex-direction:column;align-items:flex-start;padding:4px 5px 0;line-height:1.1}
+.fifa-rating{font-size:18px;font-weight:700;color:#C9960C;line-height:1}
+.fifa-pos{font-size:8px;font-weight:600;color:rgba(201,150,12,0.8)}
+.fifa-photo{width:100%;height:54px;overflow:hidden;background:#1D3A6E}
+.fifa-photo img{width:100%;height:100%;object-fit:cover;object-position:top center}
+.fifa-name{font-size:7px;font-weight:600;color:#fff;text-align:center;padding:2px 2px;background:rgba(0,0,0,0.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fifa-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;padding:3px 2px;background:rgba(0,0,0,0.2)}
+.fifa-stat{display:flex;flex-direction:column;align-items:center;gap:0}
+.fifa-stat-val{font-size:8px;font-weight:700;color:#fff;line-height:1.2}
+.fifa-stat-lbl{font-size:6px;color:rgba(201,150,12,0.8);line-height:1}
 </style>

@@ -885,6 +885,15 @@ async function renderPanelAtributos(uid, categoriaJugador) {
       if(!userData.perfil) userData.perfil = {};
       userData.perfil.ratingGeneral = rating;
       userData.perfil.subcategoria  = subcat || 'Firme';
+      // Guardar cache de scores de categorías para la FIFA card en el home
+      userData._scoresCache = {
+        defensa: scores.defensa ?? null,
+        globo:   scores.globo   ?? null,
+        volea:   scores.volea   ?? null,
+        aereo:   scores.aereo   ?? null,
+        fisico:  scores.fisico  ?? null,
+        mental:  scores.mental  ?? null,
+      };
       saveData().catch(e => console.error('Error guardando rating:', e));
     }
   }
