@@ -587,15 +587,17 @@ function _renderTorneoDetalle(t,canEdit){
     h+=`<div style="margin-bottom:12px;overflow-x:auto">`;
     h+=`<div style="font-size:11px;font-weight:600;color:var(--color-text-secondary,#888780);letter-spacing:.5px;margin-bottom:6px">CLASIFICACIÓN</div>`;
     h+=`<table style="width:100%;border-collapse:collapse;font-size:11px">`;
+    const esPts=sc==='partidos';
     h+=`<thead><tr style="border-bottom:0.5px solid var(--color-border-tertiary,#e5e4df)">
       <th style="padding:4px 4px;text-align:left;color:var(--color-text-secondary,#888780);font-weight:500">#</th>
       <th style="padding:4px 4px;text-align:left;color:var(--color-text-secondary,#888780);font-weight:500">Pareja</th>
       <th style="padding:4px 4px;text-align:center;color:var(--color-text-secondary,#888780);font-weight:500">PJ</th>
       <th style="padding:4px 4px;text-align:center;color:#1D9E75;font-weight:500">PG</th>
       <th style="padding:4px 4px;text-align:center;color:#D85A30;font-weight:500">PP</th>
-      ${sc==='games'?`<th style="padding:4px 4px;text-align:center;color:var(--color-text-secondary,#888780);font-weight:500">GF</th>
+      <th style="padding:4px 4px;text-align:center;color:var(--color-text-secondary,#888780);font-weight:500">GF</th>
       <th style="padding:4px 4px;text-align:center;color:var(--color-text-secondary,#888780);font-weight:500">GC</th>
-      <th style="padding:4px 4px;text-align:center;color:#BA7517;font-weight:500">DIF</th>`:`<th style="padding:4px 4px;text-align:center;color:#378ADD;font-weight:500">PTS</th>`}
+      <th style="padding:4px 4px;text-align:center;color:#BA7517;font-weight:500">DIF</th>
+      ${esPts?`<th style="padding:4px 4px;text-align:center;color:#378ADD;font-weight:500">PTS</th>`:''}
     </tr></thead><tbody>`;
     ranked.forEach((r,i)=>{
       const uids=t.equipoUids?.[r.nombre]||[];
@@ -608,6 +610,7 @@ function _renderTorneoDetalle(t,canEdit){
       const difStr=(dif>0?'+':'')+dif;
       const difColor=dif>0?'#1D9E75':dif<0?'#D85A30':'var(--color-text-secondary,#888780)';
       const isTop2=i<2;
+      const pts=r.pg; // en modo partidos: 3 por victoria, pero aquí usamos PG directamente
       h+=`<tr style="border-bottom:0.5px solid var(--color-border-tertiary,#e5e4df);background:${isTop2?'rgba(201,150,12,0.05)':''}">
         <td style="padding:7px 4px">
           <span style="width:18px;height:18px;border-radius:50%;background:${isTop2?'#C9960C22':'var(--color-background-secondary,#f1efe8)'};color:${isTop2?'#C9960C':'#888780'};font-size:10px;font-weight:600;display:inline-flex;align-items:center;justify-content:center">${i+1}</span>
@@ -616,9 +619,10 @@ function _renderTorneoDetalle(t,canEdit){
         <td style="padding:7px 4px;text-align:center;color:var(--color-text-secondary,#888780)">${r.pj}</td>
         <td style="padding:7px 4px;text-align:center;color:#1D9E75;font-weight:600">${r.pg}</td>
         <td style="padding:7px 4px;text-align:center;color:#D85A30">${r.pp}</td>
-        ${sc==='games'?`<td style="padding:7px 4px;text-align:center;color:var(--color-text-secondary,#888780)">${r.gamesA}</td>
+        <td style="padding:7px 4px;text-align:center;color:var(--color-text-secondary,#888780)">${r.gamesA}</td>
         <td style="padding:7px 4px;text-align:center;color:var(--color-text-secondary,#888780)">${r.gamesB}</td>
-        <td style="padding:7px 4px;text-align:center;color:${difColor};font-weight:600">${difStr}</td>`:`<td style="padding:7px 4px;text-align:center;color:#378ADD;font-weight:700">${r.pg}</td>`}
+        <td style="padding:7px 4px;text-align:center;color:${difColor};font-weight:600">${difStr}</td>
+        ${esPts?`<td style="padding:7px 4px;text-align:center;color:#378ADD;font-weight:700">${pts}</td>`:''}
       </tr>`;
     });
     h+=`</tbody></table></div>`;
@@ -920,9 +924,16 @@ function renderPagosTorneo(){
   if(!t.pagos)t.pagos={};
   if(!t.gastos)t.gastos={canchas:0,numCanchas:t.numCanchas||1,pelotas:0,numTarros:0,extras:[]};
 
-  const jugadores=t.jugadores||[];
+  const parejas=t.jugadores||[];
+  // Expandir parejas en jugadores individuales
+  const jugadores=parejas.flatMap(p=>{
+    if(!p||typeof p!=='string') return [];
+    const sep=p.includes(' - ')?' - ':p.includes(' / ')?' / ':null;
+    if(sep) return p.split(sep).map(j=>j.trim()).filter(Boolean).map(j=>({nombre:j,pareja:p}));
+    return p.trim()?[{nombre:p.trim(),pareja:p}]:[];
+  });
   const numJugadores=jugadores.length||1;
-  const pagados=jugadores.filter(j=>t.pagos[j]).length;
+  const pagados=jugadores.filter(j=>t.pagos[j.nombre]).length;
   const g=t.gastos;
 
   // Calcular total y cuota
@@ -938,7 +949,7 @@ function renderPagosTorneo(){
   <!-- Cabecera -->
   <div style="background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;padding:14px;margin-bottom:12px">
     <div style="font-size:15px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:2px">${t.nombre}</div>
-    <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:10px">${pagados} de ${numJugadores} pagaron</div>
+    <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:10px">${pagados} de ${numJugadores} jugadores pagaron</div>
     <div style="height:5px;background:var(--color-border-tertiary,#e5e4df);border-radius:3px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:${numJugadores?Math.round(pagados/numJugadores*100):0}%;background:var(--g,#1D9E75);border-radius:3px;transition:width .3s"></div></div>
     <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--color-background-secondary,#f1efe8);border-radius:8px;margin-bottom:4px">
       <div style="flex:1;font-size:10px;color:var(--color-text-secondary,#888780);word-break:break-all">${shareUrl}</div>
@@ -947,8 +958,13 @@ function renderPagosTorneo(){
   </div>
 
   <!-- Gastos -->
-  <div style="background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;padding:14px;margin-bottom:12px">
-    <div style="font-size:13px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:12px">💰 Gastos del torneo</div>
+  <div style="background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;margin-bottom:12px;overflow:hidden">
+    <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.rr-chevron').style.transform=this.nextElementSibling.style.display==='none'?'rotate(0deg)':'rotate(180deg)'"
+      style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer">
+      <div style="font-size:13px;font-weight:600;color:var(--color-text-primary,#1a1a18)">💰 Gastos del torneo${totalGeneral>0?` · <span style="color:var(--g,#1D9E75)">${_fmtMonto(totalGeneral)}</span>`:''}</div>
+      <span class="rr-chevron" style="color:var(--color-text-secondary,#888780);transition:transform .2s;display:inline-block;transform:rotate(0deg)">▾</span>
+    </div>
+    <div style="display:none;padding:0 14px 14px">
 
     <!-- Canchas -->
     <div style="margin-bottom:10px">
@@ -965,7 +981,7 @@ function renderPagosTorneo(){
             style="border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-secondary,#f1efe8);color:var(--color-text-primary,#1a1a18);width:100%;box-sizing:border-box"/>
         </div>
       </div>
-      ${totalCanchas>0?`<div style="font-size:11px;color:var(--color-text-secondary,#888780);margin-top:4px;text-align:right">Subtotal canchas: <strong>${_fmtMonto(totalCanchas)}</strong></div>`:''}
+      <div id="rr-sub-canchas" style="font-size:11px;color:var(--color-text-secondary,#888780);margin-top:4px;text-align:right">${totalCanchas>0?'Subtotal canchas: '+_fmtMonto(totalCanchas):''}</div>
     </div>
 
     <!-- Pelotas -->
@@ -983,7 +999,7 @@ function renderPagosTorneo(){
             style="border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-secondary,#f1efe8);color:var(--color-text-primary,#1a1a18);width:100%;box-sizing:border-box"/>
         </div>
       </div>
-      ${totalPelotas>0?`<div style="font-size:11px;color:var(--color-text-secondary,#888780);margin-top:4px;text-align:right">Subtotal pelotas: <strong>${_fmtMonto(totalPelotas)}</strong></div>`:''}
+      <div id="rr-sub-pelotas" style="font-size:11px;color:var(--color-text-secondary,#888780);margin-top:4px;text-align:right">${totalPelotas>0?'Subtotal pelotas: '+_fmtMonto(totalPelotas):''}</div>
     </div>
 
     <!-- Extras -->
@@ -1006,20 +1022,21 @@ function renderPagosTorneo(){
     </div>
 
     <!-- Resumen -->
-    <div style="background:var(--color-background-secondary,#f1efe8);border-radius:10px;padding:12px">
+    <div style="background:var(--color-background-secondary,#f1efe8);border-radius:10px;padding:12px;margin-top:12px">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
         <span style="color:var(--color-text-secondary,#888780)">Total gastos</span>
-        <strong style="color:var(--color-text-primary,#1a1a18)">${_fmtMonto(totalGeneral)}</strong>
+        <strong id="rr-total" style="color:var(--color-text-primary,#1a1a18)">${_fmtMonto(totalGeneral)}</strong>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
         <span style="color:var(--color-text-secondary,#888780)">Participantes</span>
-        <span style="color:var(--color-text-primary,#1a1a18)">${numJugadores} parejas</span>
+        <span style="color:var(--color-text-primary,#1a1a18)">${parejas.length} parejas · ${numJugadores} jugadores</span>
       </div>
       <div style="border-top:0.5px solid var(--color-border-tertiary,#e5e4df);margin:8px 0"></div>
       <div style="display:flex;justify-content:space-between;font-size:14px">
         <span style="font-weight:600;color:var(--color-text-primary,#1a1a18)">Cuota por pareja</span>
-        <strong style="color:var(--g,#1D9E75);font-size:16px">${cuota>0?_fmtMonto(cuota):'—'}</strong>
+        <strong id="rr-cuota" style="color:var(--g,#1D9E75);font-size:16px">${cuota>0?_fmtMonto(cuota):'—'}</strong>
       </div>
+    </div>
     </div>
   </div>
 
@@ -1027,31 +1044,64 @@ function renderPagosTorneo(){
   <div style="font-size:13px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:8px">Estado de pagos</div>
   <div style="display:flex;flex-direction:column;gap:8px">`;
 
-  jugadores.forEach(nombre=>{
-    const pagado=!!t.pagos[nombre];
-    html+=`<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--color-background-primary,#fff);border:0.5px solid ${pagado?'rgba(29,158,117,.4)':'var(--color-border-tertiary,#e5e4df)'};border-radius:12px">
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#1a1a18)">${nombre}</div>
-        ${cuota>0?`<div style="font-size:11px;color:var(--color-text-secondary,#888780)">Cuota: ${_fmtMonto(cuota)}</div>`:''}
-      </div>
-      <div style="font-size:12px;font-weight:600;color:${pagado?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}">${pagado?'✅ Pagó':'⏳ Pendiente'}</div>
-      <button onclick="togglePago('${t.id}','${nombre.replace(/'/g,"\'")}',${!pagado})"
-        style="border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:${pagado?'#FAECE7':'#E1F5EE'};color:${pagado?'#993C1D':'#0F6E56'}">
-        ${pagado?'Desmarcar':'Marcar pago'}
-      </button>
-    </div>`;
+  // Agrupar por pareja y mostrar cada jugador individualmente
+  const parejaMap={};
+  jugadores.forEach(j=>{ if(!parejaMap[j.pareja])parejaMap[j.pareja]=[]; parejaMap[j.pareja].push(j.nombre); });
+  Object.entries(parejaMap).forEach(([pareja,miembros])=>{
+    html+=`<div style="background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;overflow:hidden;margin-bottom:6px">
+      <div style="padding:5px 14px;font-size:10px;font-weight:600;color:var(--color-text-secondary,#888780);background:var(--color-background-secondary,#f1efe8);letter-spacing:.5px">${pareja}</div>`;
+    miembros.forEach(nombre=>{
+      const pagado=!!t.pagos[nombre];
+      html+=`<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:0.5px solid var(--color-border-tertiary,#e5e4df)">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#1a1a18)">${nombre}</div>
+          <div class="rr-cuota-jugador" style="font-size:11px;color:var(--color-text-secondary,#888780)">${cuota>0?'Cuota: '+_fmtMonto(cuota):''}</div>
+        </div>
+        <div style="font-size:12px;font-weight:600;color:${pagado?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}">${pagado?'✅ Pagó':'⏳ Pendiente'}</div>
+        <button onclick="togglePago('${t.id}','${nombre.replace(/'/g,"\'")}',${!pagado})"
+          style="border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:${pagado?'#FAECE7':'#E1F5EE'};color:${pagado?'#993C1D':'#0F6E56'}">
+          ${pagado?'Desmarcar':'Marcar pago'}
+        </button>
+      </div>`;
+    });
+    html+=`</div>`;
   });
   html+=`</div>`;
   el.innerHTML=html;
 }
 
-async function rrActualizarGasto(tid,campo,valor){
+let _rrGastoTimer=null;
+function rrActualizarGasto(tid,campo,valor){
   const t=userData.torneos?.find(x=>x.id===tid);
   if(!t)return;
   if(!t.gastos)t.gastos={canchas:0,numCanchas:t.numCanchas||1,pelotas:0,numTarros:0,extras:[]};
   t.gastos[campo]=parseFloat(valor)||0;
-  await saveData();
-  renderPagosTorneo();
+  // Actualizar solo el resumen en tiempo real sin rerenderizar todo
+  _rrActualizarResumen(t);
+  // Guardar con debounce de 800ms
+  clearTimeout(_rrGastoTimer);
+  _rrGastoTimer=setTimeout(()=>saveData(),800);
+}
+
+function _rrActualizarResumen(t){
+  const g=t.gastos||{};
+  const jugadores=t.jugadores||[];
+  const totalCanchas=(g.canchas||0)*(g.numCanchas||1);
+  const totalPelotas=(g.pelotas||0)*(g.numTarros||0);
+  const totalExtras=(g.extras||[]).reduce((s,e)=>s+(e.valor||0),0);
+  const total=totalCanchas+totalPelotas+totalExtras;
+  const cuota=jugadores.length>0?Math.ceil(total/jugadores.length):0;
+  // Actualizar subtotales y resumen sin tocar los inputs
+  const subCanchas=document.getElementById('rr-sub-canchas');
+  const subPelotas=document.getElementById('rr-sub-pelotas');
+  const elTotal=document.getElementById('rr-total');
+  const elCuota=document.getElementById('rr-cuota');
+  if(subCanchas) subCanchas.textContent=totalCanchas>0?'Subtotal canchas: '+_fmtMonto(totalCanchas):'';
+  if(subPelotas) subPelotas.textContent=totalPelotas>0?'Subtotal pelotas: '+_fmtMonto(totalPelotas):'';
+  if(elTotal) elTotal.textContent=_fmtMonto(total);
+  if(elCuota) elCuota.textContent=cuota>0?_fmtMonto(cuota):'—';
+  // Actualizar cuota en cada fila de jugador
+  document.querySelectorAll('.rr-cuota-jugador').forEach(el=>{ el.textContent=cuota>0?'Cuota: '+_fmtMonto(cuota):''; });
 }
 
 async function rrAgregarExtra(tid){
@@ -1075,8 +1125,9 @@ async function rrActualizarExtra(tid,idx,campo,valor){
   const t=userData.torneos?.find(x=>x.id===tid);
   if(!t||!t.gastos?.extras?.[idx])return;
   t.gastos.extras[idx][campo]=campo==='valor'?(parseFloat(valor)||0):valor;
-  await saveData();
-  renderPagosTorneo();
+  _rrActualizarResumen(t);
+  clearTimeout(_rrGastoTimer);
+  _rrGastoTimer=setTimeout(()=>saveData(),800);
 }
 
 async function togglePago(tid,nombre,pagado){
@@ -1766,38 +1817,6 @@ async function borrarFotoTorneo(tid,tipo){
 
 // ── Pagos ──
 function abrirPagosTorneo(tid){curPagosTorneoId=tid;goTo('pagos-torneo');}
-function renderPagosTorneo(){
-  const el=document.getElementById('pagos-torneo-content');if(!el)return;
-  const t=userData.torneos?.find(x=>x.id===curPagosTorneoId);
-  if(!t){el.innerHTML='<div class="empty">Torneo no encontrado</div>';return;}
-  if(!t.pagos)t.pagos={};
-  const jugadores=t.jugadores||[];const pagados=jugadores.filter(j=>t.pagos[j]).length;
-  const shareUrl=window.location.origin+window.location.pathname+'#pagos/'+t.id;
-  let html=`<div style="background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;padding:14px;margin-bottom:12px">
-    <div style="font-size:15px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">${t.nombre}</div>
-    <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:10px">${pagados} de ${jugadores.length} pagaron</div>
-    <div style="height:6px;background:var(--color-border-tertiary,#e5e4df);border-radius:3px;overflow:hidden;margin-bottom:12px"><div style="height:100%;width:${jugadores.length?Math.round(pagados/jugadores.length*100):0}%;background:var(--g,#1D9E75);border-radius:3px"></div></div>
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--color-background-secondary,#f1efe8);border-radius:8px;margin-bottom:4px">
-      <div style="flex:1;font-size:11px;color:var(--color-text-secondary,#888780);word-break:break-all">${shareUrl}</div>
-      <button onclick="navigator.clipboard.writeText('${shareUrl}').then(()=>toast('Link copiado'))" style="background:var(--g,#1D9E75);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">\ud83d\udccb Copiar</button>
-    </div>
-    <div style="font-size:10px;color:var(--color-text-secondary,#888780);text-align:center">Compart\u00ed este link con el encargado de cobrar</div>
-  </div><div style="display:flex;flex-direction:column;gap:8px">`;
-  jugadores.forEach(nombre=>{
-    const pagado=!!t.pagos[nombre];
-    html+=`<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--color-background-primary,#fff);border:0.5px solid ${pagado?'rgba(29,158,117,.4)':'var(--color-border-tertiary,#e5e4df)'};border-radius:12px">
-      <div style="flex:1;font-size:13px;font-weight:500;color:var(--color-text-primary,#1a1a18)">${nombre}</div>
-      <div style="font-size:12px;font-weight:600;color:${pagado?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}">${pagado?'\u2705 Pag\u00f3':'\u23f3 Pendiente'}</div>
-      <button onclick="togglePago('${t.id}','${nombre.replace(/'/g,"\\'")}',${!pagado})" style="border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:${pagado?'#FAECE7':'#E1F5EE'};color:${pagado?'#993C1D':'#0F6E56'}">${pagado?'Desmarcar':'Marcar pago'}</button>
-    </div>`;
-  });
-  html+=`</div>`;el.innerHTML=html;
-}
-async function togglePago(tid,nombre,pagado){
-  const t=userData.torneos?.find(x=>x.id===tid);if(!t)return;if(!t.pagos)t.pagos={};
-  if(pagado)t.pagos[nombre]=true;else delete t.pagos[nombre];
-  await saveData();renderPagosTorneo();toast(pagado?nombre+' marcado como pagado':nombre+' desmarcado');
-}
 
 // ── Torneos públicos ──
 let _torneosPublicosCache=[];

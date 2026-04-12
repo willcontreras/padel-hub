@@ -924,10 +924,133 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
       mostrarSeleccionRol(user);
     }else{
       logAuth('onAuthStateChanged: sin usuario — mostrando login');
-      hide('s-app');hide('s-rol');show('s-login');
+      // Si hay hash de pagos públicos, mostrar sin login
+      if(window.location.hash.startsWith('#pagos/')){
+        const tid=window.location.hash.replace('#pagos/','');
+        mostrarPagosPublico(tid);
+      } else {
+        hide('s-app');hide('s-rol');show('s-login');
+      }
     }
   });
 }).catch(e=>{
   logAuth('setPersistence ERROR: '+e.message);
   console.error('Persistence error:',e);
 });
+
+// ── Vista pública de pagos (sin login) ──
+async function mostrarPagosPublico(tid) {
+  hide('s-login'); hide('s-rol'); hide('s-app');
+
+  // Crear pantalla de pagos público si no existe
+  let screen = document.getElementById('s-pagos-publico');
+  if(!screen) {
+    screen = document.createElement('div');
+    screen.id = 's-pagos-publico';
+    screen.style.cssText = 'display:flex;flex-direction:column;min-height:100vh;background:var(--color-background-primary,#fff)';
+    screen.innerHTML = `
+      <div style="background:var(--color-background-primary,#fff);border-bottom:0.5px solid var(--color-border-tertiary,#e5e4df);padding:12px 16px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:16px">🎾</span>
+        <span style="font-size:15px;font-weight:600;color:var(--color-text-primary,#1a1a18)">Pádel Hub</span>
+      </div>
+      <div style="padding:16px;max-width:600px;margin:0 auto;width:100%;box-sizing:border-box" id="pagos-publico-content">
+        <div style="text-align:center;padding:40px;color:var(--color-text-secondary,#888780)">Cargando...</div>
+      </div>`;
+    document.body.appendChild(screen);
+  }
+  screen.style.display = 'flex';
+
+  const el = document.getElementById('pagos-publico-content');
+
+  try {
+    // Buscar el torneo en todos los usuarios
+    const usersSnap = await db.collection('users').get();
+    let torneo = null;
+    usersSnap.forEach(doc => {
+      if(torneo) return;
+      const t = (doc.data().torneos||[]).find(t => t.id === tid);
+      if(t) torneo = t;
+    });
+
+    if(!torneo) { el.innerHTML = '<div style="text-align:center;padding:40px;color:#888780">Torneo no encontrado</div>'; return; }
+
+    const g = torneo.gastos || {};
+    const parejas = torneo.jugadores || [];
+    const jugadores = parejas.flatMap(p => {
+      const sep = p.includes(' - ') ? ' - ' : p.includes(' / ') ? ' / ' : null;
+      if(sep) return p.split(sep).map(j => j.trim()).filter(Boolean).map(j => ({nombre:j, pareja:p}));
+      return p.trim() ? [{nombre:p.trim(), pareja:p}] : [];
+    });
+    const pagos = torneo.pagos || {};
+    const totalCanchas = (g.canchas||0)*(g.numCanchas||1);
+    const totalPelotas = (g.pelotas||0)*(g.numTarros||0);
+    const totalExtras = (g.extras||[]).reduce((s,e) => s+(e.valor||0), 0);
+    const total = totalCanchas + totalPelotas + totalExtras;
+    const cuota = jugadores.length > 0 ? Math.ceil(total / jugadores.length) : 0;
+    const pagados = jugadores.filter(j => pagos[j.nombre]).length;
+
+    const fmtMonto = n => n.toLocaleString('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0});
+
+    let html = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:18px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">${torneo.nombre}</div>
+        <div style="font-size:13px;color:var(--color-text-secondary,#888780)">${pagados} de ${jugadores.length} jugadores pagaron</div>
+        <div style="height:5px;background:var(--color-border-tertiary,#e5e4df);border-radius:3px;overflow:hidden;margin-top:8px">
+          <div style="height:100%;width:${jugadores.length?Math.round(pagados/jugadores.length*100):0}%;background:#1D9E75;border-radius:3px"></div>
+        </div>
+      </div>
+      ${cuota>0?`<div style="background:#E1F5EE;border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;color:#0F6E56">Cuota por jugador</span>
+        <strong style="font-size:16px;color:#0F6E56">${fmtMonto(cuota)}</strong>
+      </div>`:''}
+      <div style="font-size:13px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:8px">Estado de pagos</div>`;
+
+    const parejaMap = {};
+    jugadores.forEach(j => { if(!parejaMap[j.pareja]) parejaMap[j.pareja]=[]; parejaMap[j.pareja].push(j.nombre); });
+
+    Object.entries(parejaMap).forEach(([pareja, miembros]) => {
+      html += `<div style="background:#fff;border:0.5px solid #e5e4df;border-radius:12px;overflow:hidden;margin-bottom:8px">
+        <div style="padding:5px 14px;font-size:10px;font-weight:600;color:#888780;background:#f1efe8;letter-spacing:.5px">${pareja}</div>`;
+      miembros.forEach(nombre => {
+        const pagado = !!pagos[nombre];
+        html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:0.5px solid #e5e4df">
+          <div style="flex:1;font-size:13px;font-weight:500;color:#1a1a18">${nombre}</div>
+          <div style="font-size:12px;font-weight:600;color:${pagado?'#1D9E75':'#888780'}">${pagado?'✅ Pagó':'⏳ Pendiente'}</div>
+          <button onclick="togglePagoPublico('${tid}','${nombre.replace(/'/g,"\\'")}',${!pagado})"
+            style="border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:${pagado?'#FAECE7':'#E1F5EE'};color:${pagado?'#993C1D':'#0F6E56'}">
+            ${pagado?'Desmarcar':'Marcar pago'}
+          </button>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+
+    html += `<div style="text-align:center;margin-top:20px;font-size:11px;color:#888780">🎾 Pádel Hub · padelhub.web.app</div>`;
+    el.innerHTML = html;
+
+  } catch(e) {
+    console.error(e);
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:#D85A30">Error al cargar los datos</div>';
+  }
+}
+
+async function togglePagoPublico(tid, nombre, pagado) {
+  // Buscar el torneo y el dueño para guardar
+  const usersSnap = await db.collection('users').get();
+  let ownerRef = null, torneo = null;
+  usersSnap.forEach(doc => {
+    if(ownerRef) return;
+    const t = (doc.data().torneos||[]).find(t => t.id === tid);
+    if(t) { ownerRef = doc.ref; torneo = t; }
+  });
+  if(!ownerRef || !torneo) { alert('Error al guardar'); return; }
+  if(!torneo.pagos) torneo.pagos = {};
+  if(pagado) torneo.pagos[nombre] = true;
+  else delete torneo.pagos[nombre];
+  // Guardar solo el array de torneos
+  const data = await ownerRef.get();
+  const torneos = data.data().torneos || [];
+  const idx = torneos.findIndex(t => t.id === tid);
+  if(idx >= 0) { torneos[idx] = torneo; await ownerRef.update({torneos}); }
+  mostrarPagosPublico(tid);
+}
