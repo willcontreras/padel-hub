@@ -816,16 +816,23 @@ async function renderPanelAtributos(uid, categoriaJugador) {
   const subcat = rating ? _calcSubcat(rating, catRatings) : null;
 
   // Render principal
+  // Obtener posición del jugador desde allUsers o userData
+  const jugadorData = allUsers.find(x => x.uid === uid);
+  const posicion = jugadorData?.perfil?.posicion || (uid === CURRENT_USER?.uid ? userData?.perfil?.posicion : '') || '';
+
   let html = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div>
         <div style="font-size:36px;font-weight:500;color:var(--color-text-primary,#1a1a18);line-height:1">${rating ?? '—'}</div>
         <div style="font-size:11px;color:var(--color-text-secondary,#888780);margin-top:2px">Rating general</div>
-        ${subcat ? `<div style="font-size:12px;font-weight:500;color:${_subcatColor(subcat)};margin-top:2px">${categoriaJugador} ${subcat}</div>` : ''}
+        ${subcat ? `<div style="font-size:12px;font-weight:500;color:${_subcatColor(subcat)};margin-top:2px">${categoriaJugador}${posicion?' · '+posicion:''} ${subcat}</div>` : ''}
       </div>
-      <div style="text-align:right;font-size:11px;color:var(--color-text-secondary,#888780)">
-        ${mismaCat.length} valorac. de ${categoriaJugador}<br>
-        ${otrasCats.length ? `${otrasCats.length} de otras categorías` : ''}
+      <div style="text-align:right">
+        <div style="font-size:11px;color:var(--color-text-secondary,#888780);margin-bottom:6px">
+          ${mismaCat.length} valorac. de ${categoriaJugador}<br>
+          ${otrasCats.length ? `${otrasCats.length} de otras categorías` : ''}
+        </div>
+        <button onclick="generarScoutingCard('${uid}')" style="font-size:11px;background:none;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:4px 10px;cursor:pointer;color:var(--color-text-secondary,#888780);font-family:inherit">Compartir imagen</button>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">`;
@@ -965,4 +972,141 @@ function _puedeValorar(uid) {
     const uids = Object.values(t.equipoUids || {}).flat();
     return uids.includes(uid) && uids.includes(CURRENT_USER.uid);
   });
+}
+
+// ══════════════════════════════════════════════
+// GENERADOR DE SCOUTING CARD — v1.45
+// ══════════════════════════════════════════════
+async function generarScoutingCard(uid) {
+  toast('Generando imagen...');
+
+  // Obtener datos del jugador
+  const u = allUsers.find(x => x.uid === uid) || (uid === CURRENT_USER?.uid ? {uid, ...userData, perfil: userData?.perfil} : null);
+  const perfil = u?.perfil || {};
+  const nombre = _fmtApodo(perfil.apodo || (u?.email?.split('@')[0]) || 'Jugador').toUpperCase();
+  const categoria = perfil.categoria || '';
+  const posicion = perfil.posicion || '';
+
+  // Obtener valoraciones
+  const ratings = await _getValoraciones(uid);
+  if(!ratings || !ratings.length) { toast('Sin valoraciones para generar imagen'); return; }
+  const scores = _promediarValoraciones(ratings);
+  const rating = _calcRating(scores);
+  const catRatings = allUsers
+    .filter(x => x.uid !== uid && (x.perfil?.categoria||'') === categoria && x.ratingGeneral)
+    .map(x => x.ratingGeneral);
+  if(rating) catRatings.push(rating);
+  const subcat = rating ? _calcSubcat(rating, catRatings) : 'Firme';
+
+  // Canvas setup
+  const S = 2; // retina
+  const CW = 420, CH = 560;
+  const canvas = document.createElement('canvas');
+  canvas.width = CW * S; canvas.height = CH * S;
+  const cx = canvas.getContext('2d'); cx.scale(S, S);
+
+  // Fondo oscuro estilo scouting
+  cx.fillStyle = '#0a1628'; cx.fillRect(0, 0, CW, CH);
+
+  // Grid de fondo sutil
+  cx.strokeStyle = 'rgba(255,255,255,0.03)'; cx.lineWidth = 1;
+  for(let x = 0; x < CW; x += 28) { cx.beginPath(); cx.moveTo(x,0); cx.lineTo(x,CH); cx.stroke(); }
+  for(let y = 0; y < CH; y += 28) { cx.beginPath(); cx.moveTo(0,y); cx.lineTo(CW,y); cx.stroke(); }
+
+  // Franja superior color
+  const grad = cx.createLinearGradient(0,0,CW,0);
+  grad.addColorStop(0,'#1D9E75'); grad.addColorStop(1,'#0F6E56');
+  cx.fillStyle = grad; cx.fillRect(0, 0, CW, 6);
+
+  // Nombre del jugador
+  cx.fillStyle = '#ffffff';
+  cx.font = `bold 38px Impact, Arial Black, sans-serif`;
+  cx.textAlign = 'left';
+  cx.fillText(nombre, 24, 56);
+
+  // Categoría y posición
+  cx.font = '13px Arial, sans-serif';
+  cx.fillStyle = 'rgba(255,255,255,0.5)';
+  const meta = [categoria, posicion, subcat ? categoria+' '+subcat : ''].filter(Boolean);
+  cx.fillText([categoria, posicion].filter(Boolean).join(' · '), 24, 76);
+
+  // Badge subcategoría
+  const subcatColor = subcat==='Alta'?'#1D9E75':subcat==='Baja'?'#D85A30':'#BA7517';
+  cx.fillStyle = subcatColor;
+  cx.beginPath(); cx.roundRect(CW-90, 20, 70, 22, 4); cx.fill();
+  cx.fillStyle = '#fff'; cx.font = 'bold 11px Arial, sans-serif'; cx.textAlign = 'center';
+  cx.fillText(subcat || 'Firme', CW-55, 35);
+  cx.textAlign = 'left';
+
+  // Rating grande
+  cx.font = `bold 72px Impact, Arial Black, sans-serif`;
+  cx.fillStyle = '#ffffff';
+  cx.fillText(rating ?? '—', 24, 156);
+
+  cx.font = '11px Arial, sans-serif';
+  cx.fillStyle = 'rgba(255,255,255,0.4)';
+  cx.fillText('RATING GENERAL', 24, 172);
+
+  // Mini stats de las 7 categorías (2 columnas)
+  const cats = VAL_CATS.map(cat => ({ label: cat.label.toUpperCase(), score: scores[cat.key] ?? 0 }));
+  const COL1_X = 24, COL2_X = 224;
+  const ROW_H = 32, START_Y = 200;
+
+  cats.forEach((cat, i) => {
+    const col = i < 4 ? 0 : 1;
+    const row = i < 4 ? i : i - 4;
+    const x = col === 0 ? COL1_X : COL2_X;
+    const y = START_Y + row * ROW_H;
+    const BAR_W = 170;
+
+    // Label
+    cx.font = '10px Arial, sans-serif';
+    cx.fillStyle = 'rgba(255,255,255,0.5)';
+    cx.fillText(cat.label, x, y + 2);
+
+    // Score
+    cx.font = 'bold 16px Arial, sans-serif';
+    cx.fillStyle = '#ffffff';
+    cx.fillText(cat.score, x + BAR_W + 4, y + 2);
+
+    // Barra
+    cx.fillStyle = 'rgba(255,255,255,0.1)';
+    cx.beginPath(); cx.roundRect(x, y + 6, BAR_W, 5, 2); cx.fill();
+
+    const barColor = cat.score >= 75 ? '#1D9E75' : cat.score >= 55 ? '#BA7517' : '#D85A30';
+    cx.fillStyle = barColor;
+    cx.beginPath(); cx.roundRect(x, y + 6, BAR_W * (cat.score/99), 5, 2); cx.fill();
+  });
+
+  // Magia
+  const magiaY = START_Y + 4 * ROW_H + 12;
+  cx.font = '10px Arial, sans-serif';
+  cx.fillStyle = 'rgba(255,255,255,0.35)';
+  cx.fillText(`MAGIA  ${scores.magia ?? '—'}  (no incide en rating)`, COL1_X, magiaY + 8);
+
+  // Separador
+  cx.strokeStyle = 'rgba(255,255,255,0.08)'; cx.lineWidth = 0.5;
+  cx.beginPath(); cx.moveTo(24, magiaY+18); cx.lineTo(CW-24, magiaY+18); cx.stroke();
+
+  // Footer
+  cx.font = '10px Arial, sans-serif';
+  cx.fillStyle = 'rgba(255,255,255,0.2)';
+  cx.textAlign = 'center';
+  cx.fillText('Pádel Hub · padelhub.web.app', CW/2, CH - 14);
+
+  // Valoraciones count
+  cx.textAlign = 'left';
+  cx.fillStyle = 'rgba(255,255,255,0.25)';
+  cx.fillText(`${ratings.length} valoración(es)`, 24, CH - 14);
+
+  // Descargar
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `scouting-${nombre.toLowerCase().replace(/\s+/g,'-')}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    toast('Imagen descargada');
+  }, 'image/png');
 }
