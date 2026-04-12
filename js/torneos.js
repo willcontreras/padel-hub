@@ -215,6 +215,8 @@ async function crearTorneo(){
   if(jugadores.length<2){toast('Se necesitan al menos 2 parejas');return;}
   const numCanchas=parseInt(document.getElementById('nt-canchas')?.value)||0;
   let partidos=[], grupos=[];
+  const creadorUid=CURRENT_USER?.uid||null;
+  const equipoUids={};
   if(selFmtVal==='americano'){const n=jugadores.length;for(let i=0;i<n-1;i++)for(let j=i+1;j<n;j++)partidos.push({id:partidos.length+1,eq1:`${jugadores[i]} / ${jugadores[(i+1)%n]}`,eq2:`${jugadores[j]} / ${jugadores[(j+1)%n]}`,s1a:null,s1b:null,jugado:false,ganadorA:null});}
   else if(selFmtVal==='todos'){for(let i=0;i<jugadores.length-1;i++)for(let j=i+1;j<jugadores.length;j++)partidos.push({id:partidos.length+1,eq1:jugadores[i],eq2:jugadores[j],s1a:null,s1b:null,jugado:false,ganadorA:null});}
   else if(selFmtVal==='eliminacion'){const n=Math.pow(2,Math.ceil(Math.log2(jugadores.length)));for(let i=0;i<n/2;i++)partidos.push({id:i+1,eq1:jugadores[i*2]||'Libre',eq2:jugadores[i*2+1]||'Libre',s1a:null,s1b:null,jugado:false,ganadorA:null});}
@@ -333,8 +335,6 @@ async function crearTorneo(){
     }
   }
   // Auto-vincular al creador: buscar su apodo en la lista de jugadores
-  const equipoUids={};
-  const creadorUid=CURRENT_USER?.uid||null;
   const creadorApodo=(userData?.perfil?.apodo||CURRENT_USER?.displayName||'').toLowerCase().trim();
   if(creadorUid&&creadorApodo){
     jugadores.forEach(nombre=>{
@@ -571,15 +571,10 @@ function _renderTorneoDetalle(t,canEdit){
       if(!pts[p.eq1])pts[p.eq1]={nombre:p.eq1,pg:0,pp:0,pj:0,gamesA:0,gamesB:0};
       if(!pts[p.eq2])pts[p.eq2]={nombre:p.eq2,pg:0,pp:0,pj:0,gamesA:0,gamesB:0};
       pts[p.eq1].pj++; pts[p.eq2].pj++;
-      if(sc==='games'){
-        pts[p.eq1].gamesA+=(p.s1a||0); pts[p.eq1].gamesB+=(p.s1b||0);
-        pts[p.eq2].gamesA+=(p.s1b||0); pts[p.eq2].gamesB+=(p.s1a||0);
-        if((p.s1a||0)>(p.s1b||0)){pts[p.eq1].pg++;pts[p.eq2].pp++;}
-        else{pts[p.eq2].pg++;pts[p.eq1].pp++;}
-      } else {
-        if(p.ganadorA){pts[p.eq1].pg+=3;pts[p.eq2].pp++;}
-        else{pts[p.eq2].pg+=3;pts[p.eq1].pp++;}
-      }
+      pts[p.eq1].gamesA+=(p.s1a||0); pts[p.eq1].gamesB+=(p.s1b||0);
+      pts[p.eq2].gamesA+=(p.s1b||0); pts[p.eq2].gamesB+=(p.s1a||0);
+      if((p.s1a||0)>(p.s1b||0)){pts[p.eq1].pg++;pts[p.eq2].pp++;}
+      else{pts[p.eq2].pg++;pts[p.eq1].pp++;}
     });
     const ranked=Object.values(pts).sort((a,b)=>{
       const sc=t.scoring||'games';
@@ -588,9 +583,20 @@ function _renderTorneoDetalle(t,canEdit){
     });
 
     // Tabla de standings
-    h+=`<div style="margin-bottom:12px">`;
+    const sc=t.scoring||'games';
+    h+=`<div style="margin-bottom:12px;overflow-x:auto">`;
     h+=`<div style="font-size:11px;font-weight:600;color:var(--color-text-secondary,#888780);letter-spacing:.5px;margin-bottom:6px">CLASIFICACIÓN</div>`;
-    h+=`<div style="background:var(--color-background-secondary,#f1efe8);border-radius:10px;overflow:hidden">`;
+    h+=`<table style="width:100%;border-collapse:collapse;font-size:11px">`;
+    h+=`<thead><tr style="border-bottom:0.5px solid var(--color-border-tertiary,#e5e4df)">
+      <th style="padding:4px 4px;text-align:left;color:var(--color-text-secondary,#888780);font-weight:500">#</th>
+      <th style="padding:4px 4px;text-align:left;color:var(--color-text-secondary,#888780);font-weight:500">Pareja</th>
+      <th style="padding:4px 4px;text-align:center;color:var(--color-text-secondary,#888780);font-weight:500">PJ</th>
+      <th style="padding:4px 4px;text-align:center;color:#1D9E75;font-weight:500">PG</th>
+      <th style="padding:4px 4px;text-align:center;color:#D85A30;font-weight:500">PP</th>
+      ${sc==='games'?`<th style="padding:4px 4px;text-align:center;color:var(--color-text-secondary,#888780);font-weight:500">GF</th>
+      <th style="padding:4px 4px;text-align:center;color:var(--color-text-secondary,#888780);font-weight:500">GC</th>
+      <th style="padding:4px 4px;text-align:center;color:#BA7517;font-weight:500">DIF</th>`:`<th style="padding:4px 4px;text-align:center;color:#378ADD;font-weight:500">PTS</th>`}
+    </tr></thead><tbody>`;
     ranked.forEach((r,i)=>{
       const uids=t.equipoUids?.[r.nombre]||[];
       const parts=r.nombre.includes(' - ')?r.nombre.split(' - '):[r.nombre];
@@ -598,15 +604,24 @@ function _renderTorneoDetalle(t,canEdit){
         const uid=uids[pi];
         return uid?`<span onclick="verJugador('${uid}')" class="player-linked">${_apodoCorto(p.trim())}</span>`:_apodoCorto(p.trim());
       }).join(' - ');
-      const sc=t.scoring||'games';
-      const stat=sc==='games'?`${r.gamesA}-${r.gamesB} games`:`${r.pg} pts`;
-      h+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary,#e5e4df)">
-        <span style="width:18px;height:18px;border-radius:50%;background:${i<2?'#C9960C22':'#f1efe8'};color:${i<2?'#C9960C':'#888780'};font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
-        <span style="flex:1;font-size:12px;color:var(--color-text-primary,#1a1a18)">${nameHTML}</span>
-        <span style="font-size:11px;color:var(--color-text-secondary,#888780)">${r.pj}PJ · ${stat}</span>
-      </div>`;
+      const dif=r.gamesA-r.gamesB;
+      const difStr=(dif>0?'+':'')+dif;
+      const difColor=dif>0?'#1D9E75':dif<0?'#D85A30':'var(--color-text-secondary,#888780)';
+      const isTop2=i<2;
+      h+=`<tr style="border-bottom:0.5px solid var(--color-border-tertiary,#e5e4df);background:${isTop2?'rgba(201,150,12,0.05)':''}">
+        <td style="padding:7px 4px">
+          <span style="width:18px;height:18px;border-radius:50%;background:${isTop2?'#C9960C22':'var(--color-background-secondary,#f1efe8)'};color:${isTop2?'#C9960C':'#888780'};font-size:10px;font-weight:600;display:inline-flex;align-items:center;justify-content:center">${i+1}</span>
+        </td>
+        <td style="padding:7px 4px;font-size:12px;color:var(--color-text-primary,#1a1a18);font-weight:${isTop2?'600':'400'}">${nameHTML}</td>
+        <td style="padding:7px 4px;text-align:center;color:var(--color-text-secondary,#888780)">${r.pj}</td>
+        <td style="padding:7px 4px;text-align:center;color:#1D9E75;font-weight:600">${r.pg}</td>
+        <td style="padding:7px 4px;text-align:center;color:#D85A30">${r.pp}</td>
+        ${sc==='games'?`<td style="padding:7px 4px;text-align:center;color:var(--color-text-secondary,#888780)">${r.gamesA}</td>
+        <td style="padding:7px 4px;text-align:center;color:var(--color-text-secondary,#888780)">${r.gamesB}</td>
+        <td style="padding:7px 4px;text-align:center;color:${difColor};font-weight:600">${difStr}</td>`:`<td style="padding:7px 4px;text-align:center;color:#378ADD;font-weight:700">${r.pg}</td>`}
+      </tr>`;
     });
-    h+=`</div></div>`;
+    h+=`</tbody></table></div>`;
 
     // Rondas de fase
     for(let r=1;r<=rondasFase;r++){
@@ -895,34 +910,133 @@ function abrirPagosTorneo(tid){
   curPagosTorneoId=tid;
   goTo('pagos-torneo');
 }
+function _fmtMonto(n){return n.toLocaleString('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});}
+
 function renderPagosTorneo(){
   const el=document.getElementById('pagos-torneo-content');
   if(!el)return;
   const t=userData.torneos?.find(x=>x.id===curPagosTorneoId);
   if(!t){el.innerHTML='<div class="empty">Torneo no encontrado</div>';return;}
   if(!t.pagos)t.pagos={};
+  if(!t.gastos)t.gastos={canchas:0,numCanchas:t.numCanchas||1,pelotas:0,numTarros:0,extras:[]};
+
   const jugadores=t.jugadores||[];
+  const numJugadores=jugadores.length||1;
   const pagados=jugadores.filter(j=>t.pagos[j]).length;
-  // Share link — encodes tid in URL hash
+  const g=t.gastos;
+
+  // Calcular total y cuota
+  const totalCanchas=(g.canchas||0)*(g.numCanchas||1);
+  const totalPelotas=(g.pelotas||0)*(g.numTarros||0);
+  const totalExtras=(g.extras||[]).reduce((s,e)=>s+(e.valor||0),0);
+  const totalGeneral=totalCanchas+totalPelotas+totalExtras;
+  const cuota=numJugadores>0?Math.ceil(totalGeneral/numJugadores):0;
+
   const shareUrl=window.location.origin+window.location.pathname+'#pagos/'+t.id;
-  let html=`<div style="background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;padding:14px;margin-bottom:12px">
-    <div style="font-size:15px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">${t.nombre}</div>
-    <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:12px">${pagados} de ${jugadores.length} pagaron</div>
-    <div style="height:6px;background:var(--color-border-tertiary,#e5e4df);border-radius:3px;overflow:hidden;margin-bottom:12px"><div style="height:100%;width:${jugadores.length?Math.round(pagados/jugadores.length*100):0}%;background:var(--g,#1D9E75);border-radius:3px;transition:width .3s"></div></div>
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--color-background-secondary,#f1efe8);border-radius:8px;margin-bottom:4px">
-      <div style="flex:1;font-size:11px;color:var(--color-text-secondary,#888780);word-break:break-all">${shareUrl}</div>
-      <button onclick="navigator.clipboard.writeText('${shareUrl}').then(()=>toast('Link copiado'))" style="background:var(--g,#1D9E75);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">\ud83d\udccb Copiar</button>
+
+  let html=`
+  <!-- Cabecera -->
+  <div style="background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;padding:14px;margin-bottom:12px">
+    <div style="font-size:15px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:2px">${t.nombre}</div>
+    <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:10px">${pagados} de ${numJugadores} pagaron</div>
+    <div style="height:5px;background:var(--color-border-tertiary,#e5e4df);border-radius:3px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:${numJugadores?Math.round(pagados/numJugadores*100):0}%;background:var(--g,#1D9E75);border-radius:3px;transition:width .3s"></div></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--color-background-secondary,#f1efe8);border-radius:8px;margin-bottom:4px">
+      <div style="flex:1;font-size:10px;color:var(--color-text-secondary,#888780);word-break:break-all">${shareUrl}</div>
+      <button onclick="navigator.clipboard.writeText('${shareUrl}').then(()=>toast('Link copiado'))" style="background:var(--g,#1D9E75);color:#fff;border:none;border-radius:7px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit">📋 Copiar</button>
     </div>
-    <div style="font-size:10px;color:var(--color-text-secondary,#888780);text-align:center">Compart\u00ed este link con el encargado de cobrar</div>
-  </div>`;
-  html+=`<div style="display:flex;flex-direction:column;gap:8px">`;
+  </div>
+
+  <!-- Gastos -->
+  <div style="background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;padding:14px;margin-bottom:12px">
+    <div style="font-size:13px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:12px">💰 Gastos del torneo</div>
+
+    <!-- Canchas -->
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary,#888780);margin-bottom:6px">Canchas</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="fg"><label class="lbl" style="font-size:10px">Valor por cancha</label>
+          <input type="number" min="0" placeholder="$ 0" value="${g.canchas||''}"
+            oninput="rrActualizarGasto('${t.id}','canchas',this.value)"
+            style="border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-secondary,#f1efe8);color:var(--color-text-primary,#1a1a18);width:100%;box-sizing:border-box"/>
+        </div>
+        <div class="fg"><label class="lbl" style="font-size:10px">Cantidad de canchas</label>
+          <input type="number" min="1" placeholder="1" value="${g.numCanchas||t.numCanchas||1}"
+            oninput="rrActualizarGasto('${t.id}','numCanchas',this.value)"
+            style="border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-secondary,#f1efe8);color:var(--color-text-primary,#1a1a18);width:100%;box-sizing:border-box"/>
+        </div>
+      </div>
+      ${totalCanchas>0?`<div style="font-size:11px;color:var(--color-text-secondary,#888780);margin-top:4px;text-align:right">Subtotal canchas: <strong>${_fmtMonto(totalCanchas)}</strong></div>`:''}
+    </div>
+
+    <!-- Pelotas -->
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary,#888780);margin-bottom:6px">Pelotas</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="fg"><label class="lbl" style="font-size:10px">Valor por tarro</label>
+          <input type="number" min="0" placeholder="$ 0" value="${g.pelotas||''}"
+            oninput="rrActualizarGasto('${t.id}','pelotas',this.value)"
+            style="border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-secondary,#f1efe8);color:var(--color-text-primary,#1a1a18);width:100%;box-sizing:border-box"/>
+        </div>
+        <div class="fg"><label class="lbl" style="font-size:10px">Cantidad de tarros</label>
+          <input type="number" min="0" placeholder="0" value="${g.numTarros||''}"
+            oninput="rrActualizarGasto('${t.id}','numTarros',this.value)"
+            style="border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-secondary,#f1efe8);color:var(--color-text-primary,#1a1a18);width:100%;box-sizing:border-box"/>
+        </div>
+      </div>
+      ${totalPelotas>0?`<div style="font-size:11px;color:var(--color-text-secondary,#888780);margin-top:4px;text-align:right">Subtotal pelotas: <strong>${_fmtMonto(totalPelotas)}</strong></div>`:''}
+    </div>
+
+    <!-- Extras -->
+    <div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary,#888780)">Otros gastos</div>
+        <button onclick="rrAgregarExtra('${t.id}')" style="background:none;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;color:var(--color-text-secondary,#888780);font-family:inherit">+ Agregar</button>
+      </div>
+      ${(g.extras||[]).length===0?`<div style="font-size:11px;color:var(--color-text-secondary,#888780);text-align:center;padding:8px 0">Sin gastos adicionales</div>`
+      :(g.extras||[]).map((e,i)=>`
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <input type="text" placeholder="Descripción" value="${e.desc||''}"
+            oninput="rrActualizarExtra('${t.id}',${i},'desc',this.value)"
+            style="flex:1;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;background:var(--color-background-secondary,#f1efe8);color:var(--color-text-primary,#1a1a18)"/>
+          <input type="number" min="0" placeholder="$ 0" value="${e.valor||''}"
+            oninput="rrActualizarExtra('${t.id}',${i},'valor',this.value)"
+            style="width:100px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;background:var(--color-background-secondary,#f1efe8);color:var(--color-text-primary,#1a1a18)"/>
+          <button onclick="rrEliminarExtra('${t.id}',${i})" style="background:none;border:none;color:#D85A30;font-size:18px;cursor:pointer;padding:0;line-height:1">&times;</button>
+        </div>`).join('')}
+    </div>
+
+    <!-- Resumen -->
+    <div style="background:var(--color-background-secondary,#f1efe8);border-radius:10px;padding:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="color:var(--color-text-secondary,#888780)">Total gastos</span>
+        <strong style="color:var(--color-text-primary,#1a1a18)">${_fmtMonto(totalGeneral)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="color:var(--color-text-secondary,#888780)">Participantes</span>
+        <span style="color:var(--color-text-primary,#1a1a18)">${numJugadores} parejas</span>
+      </div>
+      <div style="border-top:0.5px solid var(--color-border-tertiary,#e5e4df);margin:8px 0"></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px">
+        <span style="font-weight:600;color:var(--color-text-primary,#1a1a18)">Cuota por pareja</span>
+        <strong style="color:var(--g,#1D9E75);font-size:16px">${cuota>0?_fmtMonto(cuota):'—'}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista de pagos -->
+  <div style="font-size:13px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:8px">Estado de pagos</div>
+  <div style="display:flex;flex-direction:column;gap:8px">`;
+
   jugadores.forEach(nombre=>{
     const pagado=!!t.pagos[nombre];
-    html+=`<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--color-background-primary,#fff);border:0.5px solid ${pagado?'rgba(29,158,117,.4)':'var(--color-border-tertiary,#e5e4df)'};border-radius:12px;transition:all .2s">
-      <div style="flex:1;font-size:13px;font-weight:500;color:var(--color-text-primary,#1a1a18)">${nombre}</div>
-      <div style="font-size:12px;font-weight:600;color:${pagado?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}">${pagado?'\u2705 Pag\u00f3':'\u23f3 Pendiente'}</div>
-      <button onclick="togglePago('${t.id}','${nombre.replace(/'/g,"\\'")}',${!pagado})"
-        style="border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;background:${pagado?'#FAECE7':'#E1F5EE'};color:${pagado?'#993C1D':'#0F6E56'}">
+    html+=`<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--color-background-primary,#fff);border:0.5px solid ${pagado?'rgba(29,158,117,.4)':'var(--color-border-tertiary,#e5e4df)'};border-radius:12px">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#1a1a18)">${nombre}</div>
+        ${cuota>0?`<div style="font-size:11px;color:var(--color-text-secondary,#888780)">Cuota: ${_fmtMonto(cuota)}</div>`:''}
+      </div>
+      <div style="font-size:12px;font-weight:600;color:${pagado?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}">${pagado?'✅ Pagó':'⏳ Pendiente'}</div>
+      <button onclick="togglePago('${t.id}','${nombre.replace(/'/g,"\'")}',${!pagado})"
+        style="border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:${pagado?'#FAECE7':'#E1F5EE'};color:${pagado?'#993C1D':'#0F6E56'}">
         ${pagado?'Desmarcar':'Marcar pago'}
       </button>
     </div>`;
@@ -930,6 +1044,41 @@ function renderPagosTorneo(){
   html+=`</div>`;
   el.innerHTML=html;
 }
+
+async function rrActualizarGasto(tid,campo,valor){
+  const t=userData.torneos?.find(x=>x.id===tid);
+  if(!t)return;
+  if(!t.gastos)t.gastos={canchas:0,numCanchas:t.numCanchas||1,pelotas:0,numTarros:0,extras:[]};
+  t.gastos[campo]=parseFloat(valor)||0;
+  await saveData();
+  renderPagosTorneo();
+}
+
+async function rrAgregarExtra(tid){
+  const t=userData.torneos?.find(x=>x.id===tid);
+  if(!t)return;
+  if(!t.gastos)t.gastos={canchas:0,numCanchas:t.numCanchas||1,pelotas:0,numTarros:0,extras:[]};
+  t.gastos.extras.push({desc:'',valor:0});
+  await saveData();
+  renderPagosTorneo();
+}
+
+async function rrEliminarExtra(tid,idx){
+  const t=userData.torneos?.find(x=>x.id===tid);
+  if(!t||!t.gastos?.extras)return;
+  t.gastos.extras.splice(idx,1);
+  await saveData();
+  renderPagosTorneo();
+}
+
+async function rrActualizarExtra(tid,idx,campo,valor){
+  const t=userData.torneos?.find(x=>x.id===tid);
+  if(!t||!t.gastos?.extras?.[idx])return;
+  t.gastos.extras[idx][campo]=campo==='valor'?(parseFloat(valor)||0):valor;
+  await saveData();
+  renderPagosTorneo();
+}
+
 async function togglePago(tid,nombre,pagado){
   const t=userData.torneos?.find(x=>x.id===tid);
   if(!t)return;

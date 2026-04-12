@@ -254,7 +254,9 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .bm-score.winner{color:var(--g)}
 .fmt-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
 .fmt-btn{background:var(--color-background-secondary,#f1efe8);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:10px;cursor:pointer;text-align:left;transition:all .15s;-webkit-appearance:none}
-.fmt-btn.selected{border-color:var(--g);background:var(--gl)}
+.fmt-btn.selected{border-color:var(--g);background:var(--gl);border-width:1.5px}
+.fmt-btn.selected .fmt-name{color:var(--gd,#0F6E56)}
+.fmt-btn.selected .fmt-desc{color:var(--gd,#0F6E56);opacity:0.7}
 .fmt-name{font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18)}
 .fmt-desc{font-size:10px;color:var(--color-text-secondary,#888780);margin-top:2px}
 .torneo-rank-card{background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;overflow:hidden;margin-bottom:10px}
