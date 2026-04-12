@@ -265,18 +265,19 @@ function renderHome(){
 
   document.getElementById('home-dashboard').innerHTML=`
     <!-- Perfil -->
-    <div class="dash-perfil">
+    <div class="dash-perfil" onclick="goTo('perfil')" style="cursor:pointer">
       <div class="dash-av" style="${u?.photoURL?'':`background:#E1F5EE;color:#0F6E56`}">${avatarHTML}</div>
       <div class="dash-pinfo">
         <div class="dash-pname">${apodo}</div>
         <div class="dash-badges">
-          ${perfil.categoria?`<span class="dash-badge db-cat">${perfil.categoria}</span>`:''}
+          ${perfil.categoria?`<span class="dash-badge db-cat">${perfil.categoria}${perfil.subcategoria?' '+perfil.subcategoria:''}</span>`:''}
           ${perfil.posicion?`<span class="dash-badge db-pos">${perfil.posicion}</span>`:''}
           ${perfil.club?`<span class="dash-badge db-club">📍 ${perfil.club}</span>`:''}
           ${desdeStr?`<span class="dash-badge db-desde">${desdeStr} jugando</span>`:''}
+          ${perfil.ratingGeneral?`<span class="dash-badge" style="background:#C9960C22;color:#C9960C;border:0.5px solid #C9960C55;font-weight:700">${perfil.ratingGeneral} ★</span>`:''}
         </div>
       </div>
-      <button class="dash-edit" onclick="goTo('perfil')">Editar</button>
+      <button class="dash-edit" onclick="event.stopPropagation();goTo('perfil')">Editar</button>
     </div>
 
     <!-- Stats principales -->

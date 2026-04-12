@@ -825,7 +825,7 @@ async function renderPanelAtributos(uid, categoriaJugador) {
       <div>
         <div style="font-size:36px;font-weight:500;color:var(--color-text-primary,#1a1a18);line-height:1">${rating ?? '—'}</div>
         <div style="font-size:11px;color:var(--color-text-secondary,#888780);margin-top:2px">Rating general</div>
-        ${subcat ? `<div style="font-size:12px;font-weight:500;color:${_subcatColor(subcat)};margin-top:2px">${categoriaJugador}${posicion?' · '+posicion:''} ${subcat}</div>` : ''}
+        ${subcat ? `<div style="font-size:12px;font-weight:500;color:${_subcatColor(subcat)};margin-top:2px">${categoriaJugador} ${subcat}${posicion?' · '+posicion:''}</div>` : ''}
       </div>
       <div style="text-align:right">
         <div style="font-size:11px;color:var(--color-text-secondary,#888780);margin-bottom:6px">
@@ -876,6 +876,18 @@ async function renderPanelAtributos(uid, categoriaJugador) {
   }
 
   el.innerHTML = html;
+
+  // Si es el perfil propio, guardar rating y subcategoría en Firestore
+  if(uid === CURRENT_USER?.uid && rating) {
+    const prevRating = userData?.perfil?.ratingGeneral;
+    const prevSubcat = userData?.perfil?.subcategoria;
+    if(prevRating !== rating || prevSubcat !== subcat) {
+      if(!userData.perfil) userData.perfil = {};
+      userData.perfil.ratingGeneral = rating;
+      userData.perfil.subcategoria  = subcat || 'Firme';
+      saveData().catch(e => console.error('Error guardando rating:', e));
+    }
+  }
 }
 
 // ── Abrir modal de valoración ──
@@ -980,14 +992,12 @@ function _puedeValorar(uid) {
 async function generarScoutingCard(uid) {
   toast('Generando imagen...');
 
-  // Obtener datos del jugador
   const u = allUsers.find(x => x.uid === uid) || (uid === CURRENT_USER?.uid ? {uid, ...userData, perfil: userData?.perfil} : null);
   const perfil = u?.perfil || {};
   const nombre = _fmtApodo(perfil.apodo || (u?.email?.split('@')[0]) || 'Jugador').toUpperCase();
   const categoria = perfil.categoria || '';
-  const posicion = perfil.posicion || '';
+  const posicion  = perfil.posicion  || '';
 
-  // Obtener valoraciones
   const ratings = await _getValoraciones(uid);
   if(!ratings || !ratings.length) { toast('Sin valoraciones para generar imagen'); return; }
   const scores = _promediarValoraciones(ratings);
@@ -998,115 +1008,224 @@ async function generarScoutingCard(uid) {
   if(rating) catRatings.push(rating);
   const subcat = rating ? _calcSubcat(rating, catRatings) : 'Firme';
 
-  // Canvas setup
-  const S = 2; // retina
-  const CW = 420, CH = 560;
+  // ── Paleta ──
+  const GOLD   = '#C9960C';
+  const GOLD2  = '#F0C040';
+  const WHITE  = '#FFFFFF';
+  const BLUE1  = '#1A2A4A'; // fondo oscuro
+  const BLUE2  = '#0F1E3A'; // fondo más oscuro
+  const BLUE3  = '#243555'; // card bg
+  const ACCENT = '#378ADD'; // azul claro
+  const GREEN  = '#1D9E75';
+  const AMBER  = '#BA7517';
+  const RED    = '#D85A30';
+
+  function gaugeColor(s) { return s >= 75 ? GREEN : s >= 55 ? AMBER : RED; }
+  function subcatColor(s) { return s==='Alta'?GREEN:s==='Baja'?RED:AMBER; }
+
+  // Canvas: landscape 900x560
+  const S = 2;
+  const CW = 900, CH = 560;
   const canvas = document.createElement('canvas');
-  canvas.width = CW * S; canvas.height = CH * S;
+  canvas.width = CW*S; canvas.height = CH*S;
   const cx = canvas.getContext('2d'); cx.scale(S, S);
 
-  // Fondo oscuro estilo scouting
-  cx.fillStyle = '#0a1628'; cx.fillRect(0, 0, CW, CH);
+  // ── Fondo ──
+  const bg = cx.createLinearGradient(0,0,CW,CH);
+  bg.addColorStop(0, '#1A2A4A');
+  bg.addColorStop(1, '#0A1220');
+  cx.fillStyle = bg; cx.fillRect(0,0,CW,CH);
 
-  // Grid de fondo sutil
-  cx.strokeStyle = 'rgba(255,255,255,0.03)'; cx.lineWidth = 1;
-  for(let x = 0; x < CW; x += 28) { cx.beginPath(); cx.moveTo(x,0); cx.lineTo(x,CH); cx.stroke(); }
-  for(let y = 0; y < CH; y += 28) { cx.beginPath(); cx.moveTo(0,y); cx.lineTo(CW,y); cx.stroke(); }
+  // Grid sutil
+  cx.strokeStyle='rgba(255,255,255,0.025)'; cx.lineWidth=1;
+  for(let x=0;x<CW;x+=36){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,CH);cx.stroke();}
+  for(let y=0;y<CH;y+=36){cx.beginPath();cx.moveTo(0,y);cx.lineTo(CW,y);cx.stroke();}
 
-  // Franja superior color
-  const grad = cx.createLinearGradient(0,0,CW,0);
-  grad.addColorStop(0,'#1D9E75'); grad.addColorStop(1,'#0F6E56');
-  cx.fillStyle = grad; cx.fillRect(0, 0, CW, 6);
+  // ── Franja dorada superior ──
+  const topGrad = cx.createLinearGradient(0,0,CW,0);
+  topGrad.addColorStop(0,GOLD2); topGrad.addColorStop(0.5,GOLD); topGrad.addColorStop(1,'#7A5800');
+  cx.fillStyle=topGrad; cx.fillRect(0,0,CW,5);
 
-  // Nombre del jugador
-  cx.fillStyle = '#ffffff';
-  cx.font = `bold 38px Impact, Arial Black, sans-serif`;
-  cx.textAlign = 'left';
-  cx.fillText(nombre, 24, 56);
+  // ── Panel izquierdo (jugador) ──
+  const PW = 200;
+  cx.fillStyle='rgba(0,0,0,0.25)';
+  cx.beginPath(); cx.roundRect(14, 14, PW, CH-28, 12); cx.fill();
+  cx.strokeStyle=GOLD+'55'; cx.lineWidth=0.5;
+  cx.beginPath(); cx.roundRect(14, 14, PW, CH-28, 12); cx.stroke();
 
-  // Categoría y posición
-  cx.font = '13px Arial, sans-serif';
-  cx.fillStyle = 'rgba(255,255,255,0.5)';
-  const meta = [categoria, posicion, subcat ? categoria+' '+subcat : ''].filter(Boolean);
-  cx.fillText([categoria, posicion].filter(Boolean).join(' · '), 24, 76);
+  // Nombre
+  cx.save();
+  cx.font='bold italic 40px Impact, Arial Black, sans-serif';
+  cx.fillStyle=WHITE;
+  cx.textAlign='center';
+  // Si nombre es largo, reducir fuente
+  let fsize=40;
+  while(cx.measureText(nombre).width > PW-20 && fsize>20){fsize--;cx.font=`bold italic ${fsize}px Impact, Arial Black, sans-serif`;}
+  cx.fillText(nombre, 14+PW/2, 72);
+  cx.restore();
+
+  // Línea dorada bajo nombre
+  cx.strokeStyle=GOLD; cx.lineWidth=1.5;
+  cx.beginPath(); cx.moveTo(34,82); cx.lineTo(14+PW-20,82); cx.stroke();
+
+  // Categoría · Posición
+  cx.font='12px Arial, sans-serif';
+  cx.fillStyle='rgba(255,255,255,0.55)';
+  cx.textAlign='center';
+  cx.fillText([categoria, posicion].filter(Boolean).join(' · '), 14+PW/2, 100);
 
   // Badge subcategoría
-  const subcatColor = subcat==='Alta'?'#1D9E75':subcat==='Baja'?'#D85A30':'#BA7517';
-  cx.fillStyle = subcatColor;
-  cx.beginPath(); cx.roundRect(CW-90, 20, 70, 22, 4); cx.fill();
-  cx.fillStyle = '#fff'; cx.font = 'bold 11px Arial, sans-serif'; cx.textAlign = 'center';
-  cx.fillText(subcat || 'Firme', CW-55, 35);
-  cx.textAlign = 'left';
+  const sc = subcat || 'Firme';
+  cx.fillStyle = subcatColor(sc)+'33';
+  cx.strokeStyle = subcatColor(sc);
+  cx.lineWidth=1;
+  cx.beginPath(); cx.roundRect(14+PW/2-35, 110, 70, 20, 5); cx.fill(); cx.stroke();
+  cx.font='bold 11px Arial, sans-serif';
+  cx.fillStyle=subcatColor(sc);
+  cx.fillText(sc, 14+PW/2, 124);
 
   // Rating grande
-  cx.font = `bold 72px Impact, Arial Black, sans-serif`;
-  cx.fillStyle = '#ffffff';
-  cx.fillText(rating ?? '—', 24, 156);
+  cx.font='bold 90px Impact, Arial Black, sans-serif';
+  cx.fillStyle=GOLD2;
+  cx.textAlign='center';
+  cx.fillText(rating ?? '—', 14+PW/2, 250);
 
-  cx.font = '11px Arial, sans-serif';
-  cx.fillStyle = 'rgba(255,255,255,0.4)';
-  cx.fillText('RATING GENERAL', 24, 172);
+  cx.font='10px Arial, sans-serif';
+  cx.fillStyle='rgba(255,255,255,0.35)';
+  cx.fillText('RATING GENERAL', 14+PW/2, 265);
 
-  // Mini stats de las 7 categorías (2 columnas)
-  const cats = VAL_CATS.map(cat => ({ label: cat.label.toUpperCase(), score: scores[cat.key] ?? 0 }));
-  const COL1_X = 24, COL2_X = 224;
-  const ROW_H = 32, START_Y = 200;
-
-  cats.forEach((cat, i) => {
-    const col = i < 4 ? 0 : 1;
-    const row = i < 4 ? i : i - 4;
-    const x = col === 0 ? COL1_X : COL2_X;
-    const y = START_Y + row * ROW_H;
-    const BAR_W = 170;
-
-    // Label
-    cx.font = '10px Arial, sans-serif';
-    cx.fillStyle = 'rgba(255,255,255,0.5)';
-    cx.fillText(cat.label, x, y + 2);
-
-    // Score
-    cx.font = 'bold 16px Arial, sans-serif';
-    cx.fillStyle = '#ffffff';
-    cx.fillText(cat.score, x + BAR_W + 4, y + 2);
-
-    // Barra
-    cx.fillStyle = 'rgba(255,255,255,0.1)';
-    cx.beginPath(); cx.roundRect(x, y + 6, BAR_W, 5, 2); cx.fill();
-
-    const barColor = cat.score >= 75 ? '#1D9E75' : cat.score >= 55 ? '#BA7517' : '#D85A30';
-    cx.fillStyle = barColor;
-    cx.beginPath(); cx.roundRect(x, y + 6, BAR_W * (cat.score/99), 5, 2); cx.fill();
+  // Mini stats compactas
+  const miniCats = VAL_CATS.map(c=>({lbl:c.label.slice(0,3).toUpperCase(), s:scores[c.key]??0}));
+  const MX = 14+16, MY = 285, MW = PW-32, MH = 16;
+  miniCats.forEach((mc,i) => {
+    const y = MY + i*(MH+4);
+    cx.font='9px Arial,sans-serif';
+    cx.fillStyle='rgba(255,255,255,0.45)';
+    cx.textAlign='left';
+    cx.fillText(mc.lbl, MX, y+10);
+    cx.font='bold 9px Arial,sans-serif';
+    cx.fillStyle=WHITE;
+    cx.textAlign='right';
+    cx.fillText(mc.s, MX+MW, y+10);
+    cx.fillStyle='rgba(255,255,255,0.1)';
+    cx.beginPath(); cx.roundRect(MX+28, y+3, MW-32, 5, 2); cx.fill();
+    cx.fillStyle=gaugeColor(mc.s);
+    cx.beginPath(); cx.roundRect(MX+28, y+3, (MW-32)*(mc.s/99), 5, 2); cx.fill();
   });
 
-  // Magia
-  const magiaY = START_Y + 4 * ROW_H + 12;
-  cx.font = '10px Arial, sans-serif';
-  cx.fillStyle = 'rgba(255,255,255,0.35)';
-  cx.fillText(`MAGIA  ${scores.magia ?? '—'}  (no incide en rating)`, COL1_X, magiaY + 8);
+  // Valoraciones
+  cx.font='10px Arial,sans-serif';
+  cx.fillStyle='rgba(255,255,255,0.25)';
+  cx.textAlign='center';
+  cx.fillText(`${ratings.length} valoración(es)`, 14+PW/2, CH-20);
 
-  // Separador
-  cx.strokeStyle = 'rgba(255,255,255,0.08)'; cx.lineWidth = 0.5;
-  cx.beginPath(); cx.moveTo(24, magiaY+18); cx.lineTo(CW-24, magiaY+18); cx.stroke();
+  // Pádel Hub logo text
+  cx.font='bold 11px Arial,sans-serif';
+  cx.fillStyle=GOLD+'88';
+  cx.fillText('🎾 PÁDEL HUB', 14+PW/2, CH-6);
 
-  // Footer
-  cx.font = '10px Arial, sans-serif';
-  cx.fillStyle = 'rgba(255,255,255,0.2)';
-  cx.textAlign = 'center';
-  cx.fillText('Pádel Hub · padelhub.web.app', CW/2, CH - 14);
+  // ── Grid de categorías (derecha) ──
+  function drawGauge(cx, cx2, cy, r, score, color) {
+    // Fondo semicírculo
+    cx.strokeStyle='rgba(255,255,255,0.1)';
+    cx.lineWidth=8;
+    cx.lineCap='round';
+    cx.beginPath();
+    cx.arc(cx2, cy, r, Math.PI, 0);
+    cx.stroke();
+    // Arco coloreado
+    const angle = Math.PI + (score/99)*Math.PI;
+    cx.strokeStyle=color;
+    cx.lineWidth=8;
+    cx.beginPath();
+    cx.arc(cx2, cy, r, Math.PI, angle);
+    cx.stroke();
+    // Número
+    cx.font='bold 20px Impact,Arial Black,sans-serif';
+    cx.fillStyle=WHITE;
+    cx.textAlign='center';
+    cx.fillText(score, cx2, cy+4);
+  }
 
-  // Valoraciones count
-  cx.textAlign = 'left';
-  cx.fillStyle = 'rgba(255,255,255,0.25)';
-  cx.fillText(`${ratings.length} valoración(es)`, 24, CH - 14);
+  const GRID_X = 14+PW+16;
+  const GRID_W = CW-GRID_X-14;
+  const COLS = 4, ROWS = 2;
+  const CELL_W = GRID_W/COLS;
+  const CELL_H = (CH-28)/ROWS;
 
-  // Descargar
+  VAL_CATS.forEach((cat, i) => {
+    const col = i%COLS;
+    const row = Math.floor(i/COLS);
+    const cx2 = GRID_X + col*CELL_W + CELL_W/2;
+    const cy2 = 14 + row*CELL_H;
+    const s = scores[cat.key] ?? 0;
+    const color = gaugeColor(s);
+
+    // Card bg
+    cx.fillStyle=BLUE3;
+    cx.strokeStyle='rgba(255,255,255,0.06)';
+    cx.lineWidth=0.5;
+    cx.beginPath();
+    cx.roundRect(GRID_X+col*CELL_W+4, cy2+4, CELL_W-8, CELL_H-8, 10);
+    cx.fill(); cx.stroke();
+
+    // Título categoría
+    cx.font='bold 11px Arial,sans-serif';
+    cx.fillStyle=GOLD;
+    cx.textAlign='center';
+    cx.fillText(cat.label.toUpperCase(), cx2, cy2+26);
+
+    // Gauge
+    const gaugeY = cy2 + 72;
+    const gaugeR = 32;
+    drawGauge(cx, cx2, gaugeY, gaugeR, s, color);
+
+    // Sub-atributos
+    const attrs = scores[cat.key+'_attrs'] || cat.attrs.map(()=>50);
+    const attrStartY = cy2 + 100;
+    const attrH = Math.min(18, (CELL_H - 110) / cat.attrs.length);
+    cat.attrs.forEach((a, ai) => {
+      const ay = attrStartY + ai*attrH;
+      if(ay + attrH > cy2+CELL_H-12) return;
+      cx.font=`${Math.max(8,Math.min(10,attrH-4))}px Arial,sans-serif`;
+      cx.fillStyle='rgba(255,255,255,0.45)';
+      cx.textAlign='left';
+      const shortA = a.length>14?a.slice(0,13)+'…':a;
+      cx.fillText(shortA, GRID_X+col*CELL_W+10, ay+attrH-3);
+      cx.font=`bold ${Math.max(8,Math.min(10,attrH-4))}px Arial,sans-serif`;
+      cx.fillStyle=WHITE;
+      cx.textAlign='right';
+      cx.fillText(attrs[ai], GRID_X+col*CELL_W+CELL_W-10, ay+attrH-3);
+      // Mini barra
+      const bw=CELL_W-20, bh=2;
+      cx.fillStyle='rgba(255,255,255,0.08)';
+      cx.fillRect(GRID_X+col*CELL_W+10, ay+attrH, bw, bh);
+      cx.fillStyle=color;
+      cx.fillRect(GRID_X+col*CELL_W+10, ay+attrH, bw*(attrs[ai]/99), bh);
+    });
+  });
+
+  // Magia (8va posición en el grid — última celda)
+  const magiaCol=3, magiaRow=1;
+  const mcx2 = GRID_X+magiaCol*CELL_W+CELL_W/2;
+  const mcy2 = 14+magiaRow*CELL_H;
+  cx.fillStyle=BLUE3;
+  cx.strokeStyle='rgba(255,255,255,0.06)'; cx.lineWidth=0.5;
+  cx.beginPath(); cx.roundRect(GRID_X+magiaCol*CELL_W+4,mcy2+4,CELL_W-8,CELL_H-8,10); cx.fill(); cx.stroke();
+  cx.font='bold 11px Arial,sans-serif'; cx.fillStyle=GOLD; cx.textAlign='center';
+  cx.fillText('MAGIA', mcx2, mcy2+26);
+  drawGauge(cx, mcx2, mcy2+72, 32, scores.magia??0, ACCENT);
+  cx.font='9px Arial,sans-serif'; cx.fillStyle='rgba(255,255,255,0.3)'; cx.textAlign='center';
+  cx.fillText('no incide en rating', mcx2, mcy2+110);
+
+  // ── Descargar ──
   canvas.toBlob(blob => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `scouting-${nombre.toLowerCase().replace(/\s+/g,'-')}.png`;
     a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
     toast('Imagen descargada');
   }, 'image/png');
 }
