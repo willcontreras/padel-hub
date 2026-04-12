@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "padel-depredadores-app",
+  "private_key_id": "ccdf34d1b1b64fcdf997adb6fa43051ba7f7b65f",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQD2dEo7UwT8lQ+U\nN8jOATJ6ev3vz4Gufz+qk4/mMyIY9eQsypCwqtAfqYQqa/HtZbqAQa4h/RcEJfeg\nRyQVLf01ywJtsEWNVzF13fkEnfGqMQWUd0I7O/Wf+goMcuChk3eYk/JO+Wr2SJ1o\nk/lZIMYWPB3ppp6HEcIIwC+kAUY1YWOemcuEWR/cx2vGIsFZ65g8qO4SZblRRWXZ\no2oSjH++fKYsyoPyYtSxGY2+v1UKFTtaFS14qWqa0PMipYtpu13/M52g95+6qmGU\n7CqDq7WU6OVRIb2oaaVzgpU7j8YIzDjhqou6HVIHKDxztLz84NImuutxhf7RJPYy\nOyPWvI5HAgMBAAECggEAUla83EAa2OZWK59Nk+HbgwcnYuDxgyKZWzxspaystikk\nwAA3Qgb3fLSOZvvkentzyVjoPAvKDkU/C4npGLhiMgAuwgXT3upkKGxuP2gjbsht\nBFKpyo94Oyf3Bny05taVbOD04gS7gyf0ixVxB6GG/LO+DKtxqE+7A2BuKj2QvtEw\nc7hfyWqJVxZRXYpLOreXXebcqhG3cbXvo1/sWxbF8eanVCppyRzrKgLfaAX79S1y\nxUKHq0JYP1EyYrtmZ3gnmmuk1p1DRpz63Gg3KpaaArK2S5S3wFnCu2K3IKqTCDW1\nFH7obdWhDOcXOD/wrM6e8Q6NQ9LWYdDnSE1YbF00TQKBgQD+tVNpFpRMkJFt73dz\nrzlCAoXoEhtDEttAXSYWBvFklwXDEUE9CPTNWUuXyZRJzMmXnnQLjZBRd8L4Iw93\nIZMGPNzWIofw4s/cJuuknqYY7UxtBT4S/PANG/8goAUEIucykb05aqGSE1GH8J3R\nSAdXyp0cR+Y2zAnbu4PPHjnaxQKBgQD3tD+UaIPxq/u2veRkS9wg6AEfO6nqFod0\nNca3NcVuK6MjZ0eFtu4at6AEts4I+aQx0/fsG91jOIQH/SmlnptX7wLGmi+Q3dk6\nxDwZJopKW5f98u/r9+Gj7UOTnyoFrDK5w1IE1k1RGGpHYzitFmu6okwSADRTE2VY\nhZ2wHqZFmwKBgHnoQXbPtsT6gJCUh6CX4hjE6mBLoj61HLkunBb41bpmSfy2Gnpi\n+f/62CJa+Z1k5auqzDHnXIaRgoCPD0zeheb7ZFsdBeF2PTRKcIhG4oqVsPmRA8fE\nxgQQPUjZLe1v4yYh+OYtMg2fL2uX74EGL3WGZTHu+7GIcMN5eTm9ZsVdAoGAOPhS\n2y5CknXMudXozoyH/2V8xJMzXCx8UOUBZCfQ1arhpYXedEmDb8+l1Q+6SWQpOHCZ\nB8vM2kIoU7INPxNAhTPqfoT9xaLQkGyLqfksOzffuD+EoM/tLIeoUC5+OrnFHOZo\nWcZ0F9+2qd6PLXgHpPAo8MbtQeInH/nzL4uNEFsCgYArLGTfCZX+4sPngD/SeLhb\nL+xOHbS/MuCD7EokRAhhm4ZgnZ2dzZ2MiWUJJZ8eZJpSJssZevKknL54eOa42JsD\n8LXtHFX9rWejqYRGqGYBuQxFRwZ28LaaOigC5o0iRRipWRQOi8iP8W1MQzFQL2+y\nwsmWC7FslqQ9h+YYJ1vB9A==\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-fbsvc@padel-depredadores-app.iam.gserviceaccount.com",
+  "client_id": "115940084185718240505",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40padel-depredadores-app.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

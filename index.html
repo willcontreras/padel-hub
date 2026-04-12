@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="theme-color" content="#1D9E75"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Pádel Hub"/>
+<meta name="description" content="Tu app de pádel: partidos, torneos, palas y ranking"/>
+<link rel="manifest" href="/manifest.json"/>
+<link rel="apple-touch-icon" href="/icons/icon-192.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"/>
+<title>Pádel Hub</title>
+<link rel="stylesheet" href="styles.css"/>
+<script>
+function dbg(msg){console.log("[dbg]",msg);const el=document.getElementById("debug-log");if(el){el.style.display="block";el.innerHTML+="<div>"+new Date().toISOString().slice(11,19)+" "+msg+"</div>";el.scrollTop=el.scrollHeight;}}
+</script>
+<!-- HTML ESTRUCTURA -->
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="s-login">
+  <div class="login-card">
+    <div class="login-logo">🎾</div>
+    <div class="login-title">Pádel Hub</div>
+    <div class="login-sub">Registra tus partidos, torneos y estadísticas</div>
+    <div id="inapp-warning" style="display:none;background:#FFF3CD;border:0.5px solid #FBBF24;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:#854F0B;line-height:1.5">⚠️ Abrí este link en <strong>Safari</strong> o <strong>Chrome</strong>, no desde WhatsApp.<br/><button onclick="window.open(window.location.href,'_blank')" style="margin-top:8px;background:#854F0B;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit">Abrir en el navegador</button></div>
+    <button class="google-btn" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.1 0 5.6 1.1 7.6 2.8l5.6-5.6C33.5 3.5 29 1.5 24 1.5 14.9 1.5 7.2 7 3.7 14.8l6.6 5.1C12 14.1 17.5 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.4 5.7C43.7 36.8 46.5 30.9 46.5 24z"/><path fill="#FBBC05" d="M10.3 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.1.8-4.6L3.7 14.3A22.5 22.5 0 0 0 1.5 24c0 3.6.9 7 2.4 10l6.4-5.4z"/><path fill="#34A853" d="M24 46.5c5.1 0 9.4-1.7 12.5-4.6l-7.4-5.7c-1.7 1.1-3.9 1.8-5.1 1.8-5.5 0-10.2-3.7-11.7-8.7L3.9 34c3.5 7.8 11.2 12.5 20.1 12.5z"/></svg>
+      Continuar con Google
+    </button>
+    <div class="login-note">Tus datos se guardan de forma segura.</div>
+    <div id="debug-log" style="display:none;margin-top:12px;background:#1a1a18;color:#a0ffa0;font-size:10px;font-family:monospace;padding:10px;border-radius:8px;max-height:180px;overflow-y:auto;text-align:left;word-break:break-all"></div>
+    <button onclick="document.getElementById('debug-log').style.display='block';dbg('Debug activado')" style="margin-top:6px;background:none;border:none;font-size:10px;color:#aaa;cursor:pointer">🐛 debug</button>
+    <button onclick="window._verLog&&window._verLog()" style="margin-top:4px;background:none;border:none;font-size:10px;color:#aaa;cursor:pointer">📋 ver log guardado</button>
+  </div>
+</div>
+
+<!-- ELEGIR ROL (aparece después del login si es usuario nuevo) -->
+<div id="s-rol" style="display:none">
+  <div class="login-card" style="max-width:400px;text-align:left">
+    <div style="font-size:13px;font-weight:500;color:var(--color-text-secondary,#888780);margin-bottom:14px;text-align:center">¿Cómo quieres usar Pádel Hub?</div>
+    <div id="rol-user-info" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:12px;background:var(--color-background-secondary,#f1efe8);border-radius:12px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div onclick="elegirRol('jugador')" style="background:var(--color-background-secondary,#f1efe8);border:1.5px solid var(--color-border-tertiary,#e5e4df);border-radius:14px;padding:20px 12px;cursor:pointer;text-align:center;transition:all .15s" onmouseover="this.style.borderColor='#1D9E75';this.style.background='#E1F5EE'" onmouseout="this.style.borderColor='var(--color-border-tertiary,#e5e4df)';this.style.background='var(--color-background-secondary,#f1efe8)'">
+        <div style="font-size:36px;margin-bottom:10px">🏃</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px;color:var(--color-text-primary,#1a1a18)">Jugador</div>
+        <div style="font-size:11px;color:var(--color-text-secondary,#888780);line-height:1.5">Registra partidos, torneos y lleva tus estadísticas</div>
+      </div>
+      <div onclick="elegirRol('entrenador')" style="background:var(--color-background-secondary,#f1efe8);border:1.5px solid var(--color-border-tertiary,#e5e4df);border-radius:14px;padding:20px 12px;cursor:pointer;text-align:center;transition:all .15s" onmouseover="this.style.borderColor='#185FA5';this.style.background='#E6F1FB'" onmouseout="this.style.borderColor='var(--color-border-tertiary,#e5e4df)';this.style.background='var(--color-background-secondary,#f1efe8)'">
+        <div style="font-size:36px;margin-bottom:10px">📋</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px;color:var(--color-text-primary,#1a1a18)">Entrenador</div>
+        <div style="font-size:11px;color:var(--color-text-secondary,#888780);line-height:1.5">Gestiona tu agenda, alumnos y clases</div>
+      </div>
+    </div>
+    <button onclick="fbSignOut()" style="background:none;border:none;font-size:12px;color:var(--color-text-secondary,#888780);cursor:pointer;font-family:inherit;width:100%;padding:6px;text-align:center">← Usar otra cuenta</button>
+  </div>
+  <div style="text-align:center;padding:12px 0 4px;font-size:10px;font-weight:600;color:var(--color-text-secondary,#888780);opacity:0.5">v1.44</div>
+</div>
+
+<!-- APP -->
+<div id="s-app">
+  <div class="topbar">
+    <div class="topbar-left" id="topbar-left">
+      <span class="topbar-logo">🎾 Pádel Hub</span><span style="font-size:10px;font-weight:600;color:var(--color-text-secondary,#888780);margin-left:6px;opacity:0.7">v1.44</span>
+    </div>
+    <!-- Badge de modo + switcher, solo visible en home -->
+    <!-- Botón de tema: siempre visible -->
+    <button id="tb-theme-btn" onclick="toggleTheme()" style="display:flex;align-items:center;gap:4px;background:var(--color-background-secondary,#f1efe8);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:600;color:var(--color-text-secondary,#888780);font-family:inherit;transition:all .15s;flex-shrink:0" title="Cambiar tema"><span id="tb-theme-icon">☀️</span><span id="tb-theme-label">Claro</span></button>
+    <div id="tb-mode" style="display:none;align-items:center;gap:6px">
+      <div id="tb-mode-badge" onclick="abrirCambioModo()" style="display:flex;align-items:center;gap:5px;background:#E1F5EE;border:0.5px solid #9FE1CB;border-radius:20px;padding:4px 10px;cursor:pointer;transition:all .15s" title="Cambiar modo">
+        <span id="tb-mode-icon" style="font-size:13px">🏃</span>
+        <span id="tb-mode-label" style="font-size:11px;font-weight:600;color:#0F6E56"></span>
+        <span style="font-size:9px;color:#0F6E56;opacity:.7">▾</span>
+      </div>
+    </div>
+    <div class="topbar-av" id="tb-av" onclick="goTo('perfil')"></div>
+  </div>
+
+  <!-- Modal cambio de modo -->
+  <div id="m-modo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end;justify-content:center" onclick="cerrarCambioModo()">
+    <div style="background:var(--color-background-primary,#fff);border-radius:18px 18px 0 0;padding:20px 18px 32px;width:100%;max-width:500px" onclick="event.stopPropagation()">
+      <div style="width:36px;height:4px;border-radius:2px;background:var(--color-border-secondary,#d3d1c7);margin:0 auto 16px"></div>
+      <div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--color-text-primary,#1a1a18)">Cambiar modo</div>
+      <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:16px">Puedes cambiar en cualquier momento</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div id="modo-jugador-btn" onclick="cambiarModo('jugador')" style="border-radius:14px;padding:18px 12px;text-align:center;cursor:pointer;border:1.5px solid #e5e4df;background:var(--color-background-secondary,#f1efe8);transition:all .15s">
+          <div style="font-size:30px;margin-bottom:8px">🏃</div>
+          <div style="font-size:14px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">Jugador</div>
+          <div style="font-size:11px;color:var(--color-text-secondary,#888780);line-height:1.4">Registra partidos y torneos</div>
+        </div>
+        <div id="modo-entrenador-btn" onclick="cambiarModo('entrenador')" style="border-radius:14px;padding:18px 12px;text-align:center;cursor:pointer;border:0.5px solid #e5e4df;background:var(--color-background-secondary,#f1efe8);transition:all .15s">
+          <div style="font-size:30px;margin-bottom:8px">📋</div>
+          <div style="font-size:14px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">Entrenador</div>
+          <div style="font-size:11px;color:var(--color-text-secondary,#888780);line-height:1.4">Gestiona tu agenda y alumnos</div>
+        </div>
+      </div>
+      <button onclick="cerrarCambioModo()" style="background:none;border:none;font-size:12px;color:var(--color-text-secondary,#888780);cursor:pointer;font-family:inherit;width:100%;padding:6px">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="page active" id="page-home">
+    <div id="home-dashboard" style="padding:10px 12px 0;max-width:800px;margin:0 auto"></div>
+    <div id="menu-grid" style="padding:0 12px 70px;max-width:800px;margin:0 auto"></div>
+  </div>
+
+  <div class="page" id="page-partidos">
+    <div class="content">
+      <div class="card">
+        <div class="sec-title" style="margin-bottom:12px">Registrar partido</div>
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="fg"><label class="lbl">Fecha</label><input type="date" id="p-fecha"/></div>
+          <div class="fg"><label class="lbl">Club</label>
+            <div id="p-club-selector" style="border:0.5px solid #d3d1c7;border-radius:8px;overflow:hidden;cursor:pointer" onclick="toggleClubDropdown()">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 10px;background:var(--color-background-primary,#fff)">
+                <span id="p-club-label" style="font-size:14px;color:var(--color-text-secondary,#888780)">Seleccionar club...</span>
+                <span style="font-size:10px;color:var(--color-text-secondary,#888780)">▾</span>
+              </div>
+            </div>
+            <input type="hidden" id="p-club" value=""/>
+            <div id="p-club-dropdown" style="display:none;border:0.5px solid #d3d1c7;border-top:none;border-radius:0 0 8px 8px;background:var(--color-background-primary,#fff);max-height:180px;overflow-y:auto;z-index:10;position:relative"></div>
+          </div>
+        </div>
+        <div class="fg"><label class="lbl">Pista</label><input type="text" id="p-pista" placeholder="Pista 1"/></div>
+        <div class="card-title" style="margin-top:4px">Mi equipo</div>
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="fg"><label class="lbl">Yo</label><input type="text" id="p-yo" readonly/></div>
+          <div class="fg"><label class="lbl">Mi pareja</label><input type="text" id="p-pareja" placeholder="Nombre"/></div>
+        </div>
+        <div class="card-title">Rivales</div>
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="fg"><label class="lbl">Rival 1</label><input type="text" id="p-r1" placeholder="Rival 1"/></div>
+          <div class="fg"><label class="lbl">Rival 2</label><input type="text" id="p-r2" placeholder="Rival 2"/></div>
+        </div>
+        <div class="card-title">Sets</div>
+        <div id="sets-container"></div>
+        <button class="btn btn-sm btn-outline" onclick="addSet()" style="margin-bottom:12px">+ Agregar set</button>
+        <div class="card-title">Pala utilizada</div>
+        <div id="pala-selector-container"></div>
+        <div class="card-title">Notas</div>
+        <div class="nota-toggle">
+          <button id="btn-pub" class="active-pub" onclick="setNotaMode('publica')">🌐 Pública</button>
+          <button id="btn-priv" onclick="setNotaMode('privada')">🔒 Privada</button>
+        </div>
+        <div style="font-size:10px;color:var(--color-text-secondary,#888780);margin-bottom:6px" id="nota-hint">Visible para todos</div>
+        <textarea id="p-notas" rows="2" placeholder="Cómo jugamos, qué mejorar..."></textarea>
+        <div style="margin-top:12px"><button class="btn btn-p btn-block" onclick="guardarPartido()">Guardar partido</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-torneo">
+    <div class="content">
+      <div class="sec-header">
+        <div class="sec-title">Torneos</div>
+        <button class="btn btn-sm btn-p" onclick="openModal('m-torneo');ntInitModal()">+ Nuevo</button>
+      </div>
+      <div id="torneo-content"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-pagos-torneo"><div class="content"><div class="sec-header"><div class="sec-title">Pagos del torneo</div><button class="btn btn-sm" onclick="goTo('torneo')" style="font-size:11px">← Volver</button></div><div id="pagos-torneo-content"></div></div></div>
+  <div class="page" id="page-torneos-publicos"><div class="content"><div class="sec-header"><div class="sec-title">🌍 Torneos públicos</div></div><div id="torneos-publicos-content"></div></div></div>
+  <div class="page" id="page-torneo-publico-detalle"><div class="content"><div class="sec-header"><div class="sec-title" id="torneo-pub-titulo">Torneo</div><button class="btn btn-sm" onclick="goTo('torneos-publicos')" style="font-size:11px">← Volver</button></div><div id="torneo-pub-detalle-content"></div></div></div>
+  <div class="page" id="page-palas">
+    <div class="content">
+      <div class="sec-header">
+        <div class="sec-title">Mis palas</div>
+        <button class="btn btn-sm btn-p" onclick="openModal('m-pala-nueva')">+ Agregar</button>
+      </div>
+      <div id="palas-list"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-pala-detalle">
+    <div class="content"><div id="pala-detalle-content"></div></div>
+  </div>
+
+  <div class="page" id="page-historial">
+    <div class="content">
+      <div class="sec-title" style="margin-bottom:10px">Historial de partidos</div>
+      <div class="tabs" id="hist-tabs">
+        <button class="tab active" onclick="filterH('all',this)">Todos</button>
+        <button class="tab" onclick="filterH('won',this)">Ganados</button>
+        <button class="tab" onclick="filterH('lost',this)">Perdidos</button>
+      </div>
+      <div class="card"><div id="hist-list"></div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-ranking">
+    <div class="content">
+      <div class="sec-title" style="margin-bottom:12px">Ranking general</div>
+      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary,#888780);margin-bottom:6px;display:flex;align-items:center;gap:6px"><span class="rank-dot" style="background:var(--g)"></span>Partidos normales</div>
+      <div class="card" style="padding:0;overflow:hidden;margin-bottom:14px"><table class="rt" id="rank-individual"></table></div>
+      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary,#888780);margin-bottom:6px;display:flex;align-items:center;gap:6px"><span class="rank-dot" style="background:var(--bl)"></span>Torneos</div>
+      <div class="card" style="padding:0;overflow:hidden"><table class="rt" id="rank-torneos"></table></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-stats">
+    <div class="content">
+      <div class="sec-title" style="margin-bottom:10px">Estadísticas</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px" id="stats-top"></div>
+      <div class="card"><div class="card-title">Mejores parejas</div><div id="stats-parejas"></div></div>
+      <div class="card"><div class="card-title">Evolución del winrate</div><svg viewBox="0 0 520 115" width="100%" id="stats-svg"></svg></div>
+      <div class="card"><div class="card-title">Palas usadas</div><div id="stats-palas"></div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-jugadores">
+    <div class="content">
+      <div class="sec-title" style="margin-bottom:12px">Jugadores</div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="player-search" placeholder="Buscar jugador..." oninput="renderJugadores()"/>
+      </div>
+      <div class="filter-chips" id="filter-chips"></div>
+      <div id="players-list"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-perfil">
+    <div class="content"><div id="perfil-content"></div></div>
+  </div>
+
+  <!-- CLUBES (público — todos los usuarios) -->
+  <div class="page" id="page-clubes">
+    <div class="content">
+      <div class="sec-header">
+        <div class="sec-title">Clubes</div>
+        <button class="btn btn-p btn-sm" onclick="abrirNuevoClub()">+ Agregar</button>
+      </div>
+      <div id="clubes-publico-list"></div>
+    </div>
+  </div>
+
+  <!-- ADMINISTRACIÓN (solo admins) -->
+  <div class="page" id="page-admin">
+    <div class="content">
+      <div class="sec-title" style="margin-bottom:12px">Administración</div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="admin-player-search" placeholder="Buscar jugador..." oninput="renderAdminJugadores()"/>
+      </div>
+      <div id="admin-players-list"></div>
+    </div>
+  </div>
+
+  <!-- ENTRENADOR: AGENDA -->
+  <div class="page" id="page-entrenador-agenda">
+    <div class="content">
+      <div class="sec-header">
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" id="btn-gcal-connect" onclick="conectarGoogleCalendar()">📅 Conectar Calendar</button>
+          <button class="btn btn-sm btn-outline" style="color:var(--text,#1a1a18)" onclick="abrirMisBloques()">🗂️ Mis bloques</button>
+          <button class="btn btn-sm btn-p" onclick="abrirNuevoBloque()">+ Bloque</button>
+        </div>
+      </div>
+      <div id="gcal-status" style="margin-bottom:10px"></div>
+      <div id="agenda-semana-nav" style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <button class="btn btn-sm" onclick="semanaAnterior()" style="min-width:36px">&#8592;</button>
+        <div id="agenda-semana-lbl" style="flex:1;text-align:center;font-size:13px;font-weight:500;color:var(--text,#1a1a18)"></div>
+        <button class="btn btn-sm" onclick="semanaSiguiente()" style="min-width:36px">&#8594;</button>
+      </div>
+      <div id="agenda-grid" style="overflow-x:auto"></div>
+    </div>
+  </div>
+
+  <!-- ENTRENADOR: CLASES (sub-menú) -->
+  <div class="page" id="page-entrenador-clases">
+    <div class="content">
+      <div class="sec-title" style="margin-bottom:14px">Clases</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div onclick="goTo('entrenador-agenda')" style="background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:12px;padding:16px 12px;cursor:pointer;text-align:center">
+          <span style="font-size:26px;display:block;margin-bottom:6px">📅</span>
+          <div style="font-size:13px;font-weight:500;color:#0C447C">Mi agenda</div>
+          <div style="font-size:11px;color:#185FA5;margin-top:2px">Bloques y horarios</div>
+        </div>
+        <div onclick="goTo('entrenador-alumnos')" style="background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:12px;padding:16px 12px;cursor:pointer;text-align:center">
+          <span style="font-size:26px;display:block;margin-bottom:6px">👥</span>
+          <div style="font-size:13px;font-weight:500;color:#0C447C">Mis alumnos</div>
+          <div style="font-size:11px;color:#185FA5;margin-top:2px">Historial y notas</div>
+        </div>
+      </div>
+      <div onclick="goTo('entrenador-reporte')" style="background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:12px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px">
+        <span style="font-size:26px">📊</span>
+        <div>
+          <div style="font-size:13px;font-weight:500;color:#0C447C">Reporte mensual</div>
+          <div style="font-size:11px;color:#185FA5;margin-top:2px">Clases, horas y estadísticas del mes</div>
+        </div>
+        <span style="margin-left:auto;color:#185FA5">›</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENTRENADOR: ACADEMIAS -->
+  <div class="page" id="page-entrenador-academias">
+    <div class="content">
+      <div class="sec-header">
+        <div class="sec-title">Academias</div>
+        <button class="btn btn-p btn-sm" onclick="abrirNuevaAcademia()">+ Nueva</button>
+      </div>
+      <div id="academias-list"></div>
+    </div>
+  </div>
+  <!-- ENTRENADOR: ALUMNOS -->
+  <div class="page" id="page-entrenador-alumnos">
+    <div class="content">
+      <div class="sec-title" style="margin-bottom:12px">Mis alumnos</div>
+      <div id="alumnos-list"></div>
+    </div>
+  </div>
+
+  <!-- ENTRENADOR: REPORTE -->
+  <div class="page" id="page-entrenador-reporte">
+    <div class="content">
+      <div class="sec-header">
+        <div class="sec-title">Reporte mensual</div>
+        <input type="month" id="reporte-mes" style="width:auto;font-size:13px;padding:6px 10px" onchange="renderReporte()"/>
+      </div>
+      <div id="reporte-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="reporte-filtros"></div>
+      <div id="reporte-lista"></div>
+    </div>
+  </div>
+</div>
+
+<button class="home-fab" id="home-fab" onclick="goToHome()">🏠 Inicio</button>
+
+<!-- MODAL NUEVO BLOQUE HORARIO -->
+<div class="modal-bg" id="m-bloque" style="display:none" onclick="closeModal('m-bloque')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Nuevo bloque disponible</div>
+  <div class="form-row" style="margin-bottom:8px">
+    <div class="fg"><label class="lbl">Día</label>
+      <select id="bloque-dia">
+        <option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option>
+        <option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="0">Domingo</option>
+      </select>
+    </div>
+    <div class="fg"><label class="lbl">Fecha específica (opcional)</label>
+      <input type="date" id="bloque-fecha"/>
+    </div>
+  </div>
+  <div class="form-row" style="margin-bottom:8px">
+    <div class="fg"><label class="lbl">Hora inicio</label><input type="time" id="bloque-inicio" value="09:00"/></div>
+    <div class="fg"><label class="lbl">Hora fin</label><input type="time" id="bloque-fin" value="10:00"/></div>
+  </div>
+  <div class="fg"><label class="lbl">Club</label>
+    <input type="text" id="bloque-club" placeholder="Club Las Condes..."/>
+  </div>
+  <div style="margin-bottom:8px">
+    <div onclick="toggleRecurrente()" id="bloque-recurrente-toggle" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:var(--surface,#f1efe8);border:0.5px solid #e5e4df;cursor:pointer;transition:all .15s">
+      <div id="bloque-rec-track" style="width:36px;height:20px;border-radius:10px;background:var(--color-border-secondary,#d3d1c7);position:relative;transition:all .2s;flex-shrink:0">
+        <div id="bloque-rec-thumb" style="width:16px;height:16px;border-radius:50%;background:var(--color-background-primary,#fff);position:absolute;top:2px;left:2px;transition:all .2s"></div>
+      </div>
+      <span style="font-size:13px;color:var(--text,#1a1a18)">Repetir semanalmente</span>
+    </div>
+    <input type="hidden" id="bloque-recurrente" value="false"/>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="btn btn-p" onclick="guardarBloque()">Guardar</button>
+    <button class="btn btn-outline" style="color:var(--color-text-primary,#1a1a18)" onclick="closeModal('m-bloque')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL AGENDAR CLASE -->
+<div class="modal-bg" id="m-clase" style="display:none" onclick="closeModal('m-clase')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title" id="m-clase-title">Agendar clase</div>
+  <input type="hidden" id="clase-bloque-id"/>
+  <div style="background:var(--color-background-secondary,#f1efe8);border-radius:8px;padding:9px 12px;margin-bottom:12px;font-size:12px;color:var(--color-text-primary,#1a1a18)" id="clase-bloque-info"></div>
+  <div class="fg">
+    <label class="lbl">Alumno</label>
+    <input type="text" id="clase-alumno-search" placeholder="Buscar por apodo o escribir nombre..." oninput="buscarAlumnoClase(this.value)"/>
+    <div id="clase-alumno-resultados" style="border:0.5px solid #d3d1c7;border-top:none;border-radius:0 0 8px 8px;max-height:150px;overflow-y:auto;display:none"></div>
+    <input type="hidden" id="clase-alumno-uid"/>
+    <input type="hidden" id="clase-alumno-nombre"/>
+    <div id="clase-alumno-seleccionado" style="display:none;margin-top:6px;background:#E1F5EE;border-radius:8px;padding:7px 10px;display:flex;align-items:center;justify-content:space-between">
+      <span id="clase-alumno-chip" style="font-size:13px;font-weight:500;color:#0F6E56"></span>
+      <button onclick="limpiarAlumnoClase()" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--color-text-secondary,#888780);font-family:inherit">✕</button>
+    </div>
+  </div>
+  <div class="fg"><label class="lbl">Duración</label>
+    <select id="clase-duracion">
+      <option value="30">30 min</option><option value="60" selected>60 min</option>
+      <option value="90">90 min</option><option value="120">2 horas</option>
+    </select>
+  </div>
+  <div class="fg"><label class="lbl">Nota de la clase <span style="font-size:10px;color:var(--color-text-secondary,#888780)">(privada por defecto)</span></label>
+    <textarea id="clase-nota" rows="3" placeholder="Objetivos, observaciones..."></textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+      <input type="checkbox" id="clase-nota-publica" style="width:auto;height:auto;accent-color:#1D9E75"/>
+      <label for="clase-nota-publica" style="font-size:12px;cursor:pointer;color:var(--color-text-primary,#1a1a18)">Nota visible para el alumno</label>
+    </div>
+  </div>
+  <div style="background:var(--color-background-secondary,#f1efe8);border-radius:8px;padding:9px 12px;margin-bottom:12px">
+    <div style="font-size:11px;font-weight:500;color:var(--color-text-primary,#1a1a18);margin-bottom:8px">📅 Agregar a Google Calendar</div>
+    <div style="display:flex;flex-direction:column;gap:6px" id="gcal-opciones">
+      <div onclick="selGcalOpcion('solo',this)" data-val="solo" class="gcal-opt gcal-opt-active" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;background:var(--color-background-primary,#fff);border:1.5px solid #1D9E75">
+        <div style="width:16px;height:16px;border-radius:50%;background:#1D9E75;flex-shrink:0;display:flex;align-items:center;justify-content:center"><div style="width:6px;height:6px;border-radius:50%;background:var(--color-background-primary,#fff)"></div></div>
+        <span style="font-size:12px;color:var(--color-text-primary,#1a1a18)">Solo en mi calendario</span>
+      </div>
+      <div onclick="selGcalOpcion('invitar',this)" data-val="invitar" class="gcal-opt" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;background:var(--color-background-primary,#fff);border:1.5px solid #e5e4df">
+        <div style="width:16px;height:16px;border-radius:50%;background:var(--color-border-tertiary,#e5e4df);flex-shrink:0"></div>
+        <span style="font-size:12px;color:var(--color-text-primary,#1a1a18)">Invitar al alumno (recibe email)</span>
+      </div>
+      <div onclick="selGcalOpcion('no',this)" data-val="no" class="gcal-opt" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;background:var(--color-background-primary,#fff);border:1.5px solid #e5e4df">
+        <div style="width:16px;height:16px;border-radius:50%;background:var(--color-border-tertiary,#e5e4df);flex-shrink:0"></div>
+        <span style="font-size:12px;color:var(--color-text-primary,#1a1a18)">No agregar a Calendar</span>
+      </div>
+    </div>
+    <input type="hidden" id="gcal-opcion-val" value="solo"/>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-p" onclick="guardarClase()">Confirmar clase</button>
+    <button class="btn btn-outline" style="color:var(--color-text-primary,#1a1a18)" onclick="closeModal('m-clase')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL DETALLE CLASE (apuntes post-clase) -->
+<div class="modal-bg" id="m-detalle-clase" style="display:none" onclick="closeModal('m-detalle-clase')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title" id="dc-title">Detalle de clase</div>
+  <input type="hidden" id="dc-clase-id"/>
+  <div style="background:var(--color-background-secondary,#f1efe8);border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:12px;color:var(--color-text-primary,#1a1a18)" id="dc-info"></div>
+  <!-- Estado Calendar -->
+  <div id="dc-gcal-status" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 10px;border-radius:8px;font-size:12px"></div>
+  <div class="fg"><label class="lbl">Nota</label>
+    <textarea id="dc-nota" rows="4" placeholder="Cómo fue la clase, qué trabajaron, qué mejorar..."></textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+      <input type="checkbox" id="dc-nota-publica" style="width:auto;height:auto;accent-color:#1D9E75"/>
+      <label for="dc-nota-publica" style="font-size:12px;cursor:pointer;color:var(--color-text-primary,#1a1a18)">Nota visible para el alumno</label>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-p" onclick="guardarNotaClase()">Guardar cambios</button>
+    <button class="btn" style="background:#FAECE7;color:#993C1D;border-color:#f0c4b0" onclick="cancelarClase()">Cancelar clase</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL DETALLE ALUMNO -->
+<div class="modal-bg" id="m-detalle-alumno" style="display:none" onclick="closeModal('m-detalle-alumno')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div id="da-content"></div>
+</div>
+</div>
+
+<!-- MODAL EDITAR BLOQUE -->
+<div class="modal-bg" id="m-editar-bloque" style="display:none" onclick="closeModal('m-editar-bloque')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Editar bloque</div>
+  <input type="hidden" id="eb-id-base"/>
+  <div class="fg"><label class="lbl">Día</label>
+    <select id="eb-dia">
+      <option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option>
+      <option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="0">Domingo</option>
+    </select>
+  </div>
+  <div class="form-row" style="margin-bottom:8px">
+    <div class="fg"><label class="lbl">Hora inicio</label><input type="time" id="eb-inicio"/></div>
+    <div class="fg"><label class="lbl">Hora fin</label><input type="time" id="eb-fin"/></div>
+  </div>
+  <div class="fg"><label class="lbl">Club</label>
+    <input type="text" id="eb-club" placeholder="Club Las Condes..."/>
+  </div>
+  <div style="margin-bottom:8px">
+    <div onclick="toggleRecurrenteEdit()" id="eb-recurrente-toggle" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:var(--surface,#f1efe8);border:0.5px solid #e5e4df;cursor:pointer">
+      <div id="eb-rec-track" style="width:36px;height:20px;border-radius:10px;background:var(--color-border-secondary,#d3d1c7);position:relative;transition:all .2s;flex-shrink:0">
+        <div id="eb-rec-thumb" style="width:16px;height:16px;border-radius:50%;background:var(--color-background-primary,#fff);position:absolute;top:2px;left:2px;transition:all .2s"></div>
+      </div>
+      <span style="font-size:13px;color:var(--text,#1a1a18)">Repetir semanalmente</span>
+    </div>
+    <input type="hidden" id="eb-recurrente" value="false"/>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn btn-p" onclick="guardarBloqueEditado()">Guardar</button>
+    <button class="btn" style="background:#FAECE7;color:#993C1D;border-color:#f0c4b0" onclick="eliminarBloqueGrupo()">Eliminar bloque</button>
+    <button class="btn btn-outline" style="color:var(--text,#1a1a18)" onclick="closeModal('m-editar-bloque')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL EDITAR JUGADOR (admin) -->
+<div class="modal-bg" id="m-admin-jugador" style="display:none" onclick="closeModal('m-admin-jugador')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Editar jugador</div>
+  <input type="hidden" id="aj-uid"/>
+  <div class="fg"><label class="lbl">Apodo</label><input type="text" id="aj-apodo" placeholder="Apodo del jugador..."/></div>
+  <div class="form-row" style="margin-bottom:8px">
+    <div class="fg"><label class="lbl">Categoría</label>
+      <select id="aj-categoria"><option value="">Sin especificar</option><option>1ra</option><option>2da</option><option>3ra</option><option>4ta</option><option>5ta</option><option>6ta</option></select>
+    </div>
+    <div class="fg"><label class="lbl">Posición</label>
+      <select id="aj-posicion"><option value="">Sin especificar</option><option>Drive</option><option>Revés</option><option>Indiferente</option></select>
+    </div>
+  </div>
+  <div class="form-row" style="margin-bottom:8px">
+    <div class="fg"><label class="lbl">Género</label>
+      <select id="aj-genero"><option value="">Sin especificar</option><option>Masculino</option><option>Femenino</option><option>Otro</option></select>
+    </div>
+    <div class="fg"><label class="lbl">Club</label>
+      <input type="text" id="aj-club" placeholder="Club..."/>
+    </div>
+  </div>
+  <div class="fg"><label class="lbl">Rol</label>
+    <select id="aj-rol"><option value="jugador">Jugador</option><option value="entrenador">Entrenador</option></select>
+  </div>
+  <div class="fg" style="display:flex;align-items:center;gap:8px">
+    <input type="checkbox" id="aj-admin" style="width:auto;height:auto;accent-color:#1D9E75"/>
+    <label for="aj-admin" style="font-size:13px;cursor:pointer;color:var(--color-text-primary,#1a1a18)">Perfil de administrador</label>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn btn-p" onclick="guardarJugadorAdmin()">Guardar</button>
+    <button class="btn btn-outline" style="color:var(--color-text-primary,#1a1a18)" onclick="closeModal('m-admin-jugador')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL NUEVO CLUB -->
+<div class="modal-bg" id="m-nuevo-club" style="display:none" onclick="closeModal('m-nuevo-club')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title" id="nc-title">Agregar club</div>
+  <input type="hidden" id="nc-idx" value=""/>
+  <div class="fg"><label class="lbl">Nombre del club <span style="color:#D85A30">*</span></label>
+    <input type="text" id="nc-nombre" placeholder="Club de Pádel Las Condes..."/>
+  </div>
+  <div class="form-row" style="margin-bottom:8px">
+    <div class="fg"><label class="lbl">Ciudad</label>
+      <input type="text" id="nc-ciudad" placeholder="Santiago..."/>
+    </div>
+    <div class="fg"><label class="lbl">Canchas</label>
+      <input type="number" id="nc-canchas" placeholder="6" min="1" max="50" inputmode="numeric"/>
+    </div>
+  </div>
+  <div class="fg"><label class="lbl">Dirección completa</label>
+    <input type="text" id="nc-direccion" placeholder="Av. Apoquindo 4501, Las Condes..." oninput="previewMapa()"/>
+    <div style="font-size:10px;color:var(--color-text-secondary,#888780);margin-top:2px">Se usará para mostrar el mapa</div>
+  </div>
+  <!-- Preview del mapa -->
+  <div id="nc-mapa-preview" style="display:none;margin-bottom:8px;border-radius:10px;overflow:hidden;border:0.5px solid #e5e4df">
+    <iframe id="nc-mapa-iframe" width="100%" height="160" style="border:none;display:block" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+  </div>
+  <div class="fg"><label class="lbl">Sitio web</label>
+    <input type="url" id="nc-web" placeholder="https://clubpadellascondes.cl..."/>
+  </div>
+  <div class="fg"><label class="lbl">Instagram</label>
+    <div style="position:relative">
+      <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--color-text-secondary,#888780)">@</span>
+      <input type="text" id="nc-instagram" placeholder="clubpadelsantiago" style="padding-left:28px"/>
+    </div>
+  </div>
+  <div class="fg"><label class="lbl">Teléfono de contacto</label>
+    <input type="tel" id="nc-telefono" placeholder="+56 2 2345 6789..."/>
+  </div>
+  <div class="fg"><label class="lbl">Email de contacto</label>
+    <input type="email" id="nc-email" placeholder="info@club.cl..."/>
+  </div>
+  <div class="fg"><label class="lbl">Notas adicionales</label>
+    <textarea id="nc-notas" rows="2" placeholder="Horarios, precio de cancha, estacionamiento..."></textarea>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn btn-p" onclick="guardarNuevoClub()">Guardar</button>
+    <button class="btn btn-outline" style="color:var(--color-text-primary,#1a1a18)" onclick="closeModal('m-nuevo-club')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODALES -->
+<div class="modal-bg" id="m-torneo" style="display:none" onclick="closeModal('m-torneo')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Nuevo torneo</div>
+  <div class="form-row" style="margin-bottom:8px">
+    <div class="fg"><label class="lbl">Nombre</label><input type="text" id="nt-nombre" placeholder="Americano sábado..."/></div>
+    <div class="fg"><label class="lbl">Fecha</label><input type="date" id="nt-fecha"/></div>
+  </div>
+  <div class="form-row" style="margin-bottom:8px">
+    <div class="fg"><label class="lbl">Canchas disponibles <span style="font-weight:400;opacity:.6">(opcional)</span></label><input type="number" id="nt-canchas" placeholder="Ej: 3" min="0" max="20" inputmode="numeric"/></div>
+  </div>
+  <div style="margin-bottom:8px"><label class="lbl">Formato</label>
+  <div class="fmt-grid">
+    <div class="fmt-btn selected" data-fmt="americano" onclick="selFmt(this)"><div class="fmt-name">Americano clásico</div><div class="fmt-desc">Rotación de parejas</div></div>
+    <div class="fmt-btn" data-fmt="todos" onclick="selFmt(this)"><div class="fmt-name">Todos contra todos</div><div class="fmt-desc">Parejas fijas</div></div>
+    <div class="fmt-btn" data-fmt="grupos" onclick="selFmt(this)"><div class="fmt-name">Grupos + eliminatorias</div><div class="fmt-desc">Fase de grupos y cuadro</div></div>
+    <div class="fmt-btn" data-fmt="eliminacion" onclick="selFmt(this)"><div class="fmt-name">Eliminación directa</div><div class="fmt-desc">Cuadro de llaves</div></div>
+  </div></div>
+  <div class="fg">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <label class="lbl" style="margin-bottom:0">Parejas <span id="nt-pareja-count" style="font-size:11px;color:var(--color-text-secondary,#888780);font-weight:400">(mín. 2)</span></label>
+      <button onclick="ntAgregarPareja()" type="button" style="background:var(--g,#1D9E75);color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit">+ Pareja</button>
+    </div>
+    <div id="nt-parejas-lista" style="display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+  <div style="margin-bottom:12px"><label class="lbl">Sistema de puntuación</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px"><div id="sc-games" onclick="selScoring(this)" data-sc="games" style="border:1.5px solid var(--g,#1D9E75);border-radius:10px;padding:10px 12px;cursor:pointer;background:var(--gl,#E1F5EE)"><div style="font-size:12px;font-weight:600;color:var(--gd,#0F6E56)">🎮 Por games</div><div style="font-size:10px;color:var(--color-text-secondary,#888780);margin-top:2px">Suma de games ganados</div></div><div id="sc-partidos" onclick="selScoring(this)" data-sc="partidos" style="border:1.5px solid var(--color-border-tertiary,#e5e4df);border-radius:10px;padding:10px 12px;cursor:pointer"><div style="font-size:12px;font-weight:600;color:var(--color-text-primary,#1a1a18)">🏆 Por partidos</div><div style="font-size:10px;color:var(--color-text-secondary,#888780);margin-top:2px">3 pts ganado · 1 empate · 0 derrota</div></div></div></div>
+  <div style="margin-bottom:12px"><label class="lbl">Visibilidad</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px"><div id="vis-privado" onclick="selVisibilidad(this)" data-vis="privado" style="border:1.5px solid var(--g,#1D9E75);border-radius:10px;padding:10px 12px;cursor:pointer;background:var(--gl,#E1F5EE)"><div style="font-size:12px;font-weight:600;color:var(--gd,#0F6E56)">🔒 Privado</div><div style="font-size:10px;color:var(--color-text-secondary,#888780);margin-top:2px">Solo vós lo ves</div></div><div id="vis-publico" onclick="selVisibilidad(this)" data-vis="publico" style="border:1.5px solid var(--color-border-tertiary,#e5e4df);border-radius:10px;padding:10px 12px;cursor:pointer"><div style="font-size:12px;font-weight:600;color:var(--color-text-primary,#1a1a18)">🌍 Público</div><div style="font-size:10px;color:var(--color-text-secondary,#888780);margin-top:2px">Visible para todos</div></div></div></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-p" onclick="crearTorneo()">Generar</button>
+    <button class="btn" onclick="closeModal('m-torneo')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<div class="modal-bg" id="m-resultado" style="display:none" onclick="closeModal('m-resultado')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Cargar resultado</div>
+  <div style="margin-bottom:10px;font-size:12px;color:var(--color-text-secondary,#888780)" id="mr-equipos"></div>
+  <div class="form-row">
+    <div class="fg"><label class="lbl" id="mr-lbl-a">Equipo A</label><input type="number" id="mr-sa" min="0" max="7" placeholder="6" inputmode="numeric"/></div>
+    <div class="fg"><label class="lbl" id="mr-lbl-b">Equipo B</label><input type="number" id="mr-sb" min="0" max="7" placeholder="4" inputmode="numeric"/></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="btn btn-p" onclick="guardarResultado()">Guardar</button>
+    <button class="btn" onclick="closeModal('m-resultado')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<div class="modal-bg" id="m-perfil" style="display:none" onclick="closeModal('m-perfil')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title" id="m-perfil-title">Editar perfil</div>
+  <div class="fg">
+    <label class="lbl">Apodo <span style="color:#D85A30">*</span></label>
+    <input type="text" id="ep-apodo" placeholder="Como te conocen en la cancha..." maxlength="30"/>
+    <div style="font-size:10px;color:var(--color-text-secondary,#888780);margin-top:3px">Este es el nombre que verán los demás jugadores</div>
+  </div>
+  <div class="fg" style="display:flex;align-items:center;gap:8px;margin-top:2px;margin-bottom:10px">
+    <input type="checkbox" id="ep-mostrar-nombre" style="width:auto;height:auto;accent-color:#1D9E75;cursor:pointer"/>
+    <label for="ep-mostrar-nombre" style="font-size:12px;cursor:pointer;color:var(--color-text-primary,#1a1a18)">Mostrar también mi nombre real de Google</label>
+  </div>
+  <div class="form-row" style="margin-bottom:8px">
+    <div class="fg"><label class="lbl">Posición preferida</label>
+      <select id="ep-posicion"><option value="">Sin especificar</option><option>Drive</option><option>Revés</option><option>Indiferente</option></select>
+    </div>
+    <div class="fg"><label class="lbl">Categoría</label>
+      <select id="ep-categoria"><option value="">Sin especificar</option><option>1ra</option><option>2da</option><option>3ra</option><option>4ta</option><option>5ta</option><option>6ta</option></select>
+    </div>
+  </div>
+  <div class="form-row" style="margin-bottom:8px">
+    <div class="fg"><label class="lbl">Género</label>
+      <select id="ep-genero"><option value="">Sin especificar</option><option>Masculino</option><option>Femenino</option><option>Otro</option></select>
+    </div>
+    <div class="fg"><label class="lbl">Club de preferencia</label>
+      <input type="text" id="ep-club" placeholder="Club Palermo..."/>
+    </div>
+  </div>
+  <div class="fg"><label class="lbl">Jugando desde</label><input type="date" id="ep-desde"/></div>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn btn-p" onclick="guardarPerfil()">Guardar</button>
+    <button class="btn" id="btn-perfil-cancelar" onclick="closeModal('m-perfil')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL NUEVA PALA -->
+<div class="modal-bg" id="m-pala-nueva" style="display:none" onclick="closeModal('m-pala-nueva')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Nueva pala</div>
+  <!-- v1.29 -->
+
+  <!-- PASO 1: Selección de marca -->
+  <div id="np-step-marca">
+    <input type="text" id="np-marca-search" placeholder="🔍 Buscar marca..." style="margin-bottom:10px" oninput="_renderMarcasList(this.value)"/>
+    <div id="np-marcas-grid" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;max-height:55vh;overflow-y:auto;scrollbar-width:none"></div>
+    <div style="text-align:center;margin-bottom:4px">
+      <span style="font-size:11px;color:var(--color-text-secondary,#888780)">¿No está tu marca?</span>
+    </div>
+    <input type="text" id="np-marca-custom" placeholder="Escribe la marca..." style="margin-bottom:10px" oninput="onMarcaCustomInput(this.value)"/>
+    <button class="btn btn-outline btn-block" style="color:var(--color-text-primary,#1a1a18)" id="btn-marca-custom-ok" onclick="seleccionarMarcaCustom()" style="display:none">Continuar →</button>
+  </div>
+
+  <!-- PASO 2: Selección de modelo -->
+  <div id="np-step-modelo" style="display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <button class="btn btn-sm btn-outline" style="color:var(--color-text-primary,#1a1a18);padding:4px 10px" onclick="volverAMarca()">← <span id="np-marca-elegida-label"></span></button>
+    </div>
+    <input type="text" id="np-modelo-search" placeholder="🔍 Buscar modelo..." style="margin-bottom:8px" oninput="_renderModelosList(this.value)"/>
+    <div id="np-modelos-grid" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;max-height:45vh;overflow-y:auto;scrollbar-width:none"></div>
+    <div style="text-align:center;margin-bottom:4px">
+      <span style="font-size:11px;color:var(--color-text-secondary,#888780)">¿No está tu modelo?</span>
+    </div>
+    <input type="text" id="np-modelo-custom" placeholder="Escribe el modelo..." style="margin-bottom:10px"/>
+    <button class="btn btn-p btn-block" onclick="irADetalles()">Continuar →</button>
+  </div>
+
+  <!-- PASO 3: Detalles -->
+  <div id="np-step-detalles" style="display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <button class="btn btn-sm btn-outline" style="color:var(--color-text-primary,#1a1a18);padding:4px 10px" onclick="volverAModelo()">← Volver</button>
+      <span id="np-resumen-label" style="font-size:15px;font-weight:700;color:var(--color-text-primary,#1a1a18);letter-spacing:-0.2px"></span>
+    </div>
+    <div class="form-row" style="margin-bottom:8px">
+      <div class="fg"><label class="lbl">Forma</label>
+        <select id="np-forma"><option>Redonda</option><option>Diamante</option><option>Lágrima</option><option>Híbrida</option></select>
+      </div>
+      <div class="fg"><label class="lbl">Año</label>
+        <input type="number" id="np-year" placeholder="2025" min="2000" max="2030"/>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:12px" id="np-fecha-wrap">
+      <label class="lbl">Fecha de inicio con esta pala</label>
+      <input type="date" id="np-fecha-creacion"/>
+    </div>
+    <div class="fg" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 12px;background:var(--color-background-secondary,#f1efe8);border-radius:10px;cursor:pointer" onclick="this.querySelector('input').click()">
+      <input type="checkbox" id="np-predeterminada" style="width:18px;height:18px;accent-color:#1D9E75;cursor:pointer;flex-shrink:0"/>
+      <label for="np-predeterminada" style="font-size:13px;cursor:pointer;color:var(--color-text-primary,#1a1a18);font-weight:500;pointer-events:none">⭐ Marcar como pala predeterminada</label>
+    </div>
+    <div class="card-title">Parámetros (1–10)</div>
+    <div id="np-params"></div>
+    <div class="fg"><label class="lbl">Notas</label><textarea id="np-notas" rows="2"></textarea></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-p" id="btn-guardar-pala" onclick="guardarPalaNueva()">Guardar pala</button>
+      <button class="btn btn-outline" style="color:var(--color-text-primary,#1a1a18)" onclick="closeModal('m-pala-nueva')">Cancelar</button>
+    </div>
+  </div>
+</div>
+</div>
+
+
+<!-- FIREBASE SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<!-- MÓDULOS JS -->
+<script src="js/firebase-core.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/clubes.js"></script>
+<script src="js/perfil-jugadores.js"></script>
+<script src="js/palas.js"></script>
+<script src="js/torneos.js"></script>
+<script src="js/entrenador.js"></script>
+
+</body>
+</html>

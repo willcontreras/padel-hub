@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "padelhub-d839d"
+  },
+  "targets": {
+    "padelhub-d839d": {
+      "hosting": {
+        "padelhub": [
+          "padelhub"
+        ]
+      }
+    }
+  }
+}

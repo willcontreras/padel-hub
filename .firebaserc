@@ -1,0 +1,22 @@
+{
+  "projects": {
+    "default": "padel-depredadores-app"
+  },
+  "targets": {
+    "padel-depredadores-app": {
+      "hosting": {
+        "padelhub": [
+          "padelhub"
+        ]
+      }
+    },
+    "padelhub-d839d": {
+      "hosting": {
+        "padelhub": [
+          "padelhub"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "target": "padelhub",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
