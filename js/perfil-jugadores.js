@@ -142,7 +142,9 @@ async function renderPerfil(uid){
         ${torneosHTML}
       </div>
       ${(ud.palas||[]).length?`<div class="card"><div class="card-title">Palas</div>${ud.palas.map(p=>{const nPart=(ud.partidos||[]).filter(x=>x.palaId===p.id).length;const nTorn=Object.values(ud.palasTorneos||{}).filter(pid=>pid===p.id).length;return `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:0.5px solid #e5e4df"><span style="font-size:12px;font-weight:500">${p.marca} ${p.modelo}</span><div style="display:flex;gap:5px">${nPart?`<span class="badge bg">${nPart} part.</span>`:''} ${nTorn?`<span class="badge" style="background:rgba(55,138,221,0.15);color:var(--bl,#378ADD)">${nTorn} torn.</span>`:''} ${!nPart&&!nTorn?`<span class="badge bg">0 part.</span>`:''}</div></div>`;}).join('')}</div>`:''}
+      <div class="card"><div class="card-title">Atributos</div><div id="panel-atributos-container"></div></div>
     `;
+  renderPanelAtributos(CURRENT_USER.uid, perfil.categoria||'');
   } else {
     let p=allUsers.find(x=>x.uid===uid);
     if(!p){
@@ -307,7 +309,15 @@ async function renderPerfil(uid){
         </div>
         ${torneosHTML}
       </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="card-title" style="margin-bottom:0">Atributos</div>
+          ${_puedeValorar(uid)?`<button class="btn btn-sm" onclick="abrirValoracion('${uid}')">Valorar</button>`:''}
+        </div>
+        <div id="panel-atributos-container"></div>
+      </div>
     `;
+  renderPanelAtributos(uid, perfil.categoria||'');
 
   }
 }
@@ -682,3 +692,277 @@ async function asignarPalaPartido(partidoId,palaId){
 function filterH(f,el){document.querySelectorAll('#hist-tabs .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderHistorial(f);}
 
 // PALAS
+
+// ══════════════════════════════════════════════
+// PANEL DE ATRIBUTOS — v1.45
+// ══════════════════════════════════════════════
+
+const VAL_CATS = [
+  { key:'defensa', label:'Defensa',     peso:0.20, attrs:['Derecha de fondo','Revés de fondo','Resto','Transición','Consistencia'] },
+  { key:'globo',   label:'Globo',       peso:0.20, attrs:['Altura','Profundidad','Decisión táctica'] },
+  { key:'volea',   label:'Volea',       peso:0.20, attrs:['Derecha','Revés','Presión','Contención','Bloqueo'] },
+  { key:'aereo',   label:'Juego aéreo', peso:0.15, attrs:['Bandeja','Víbora','Rulo / Gancho'] },
+  { key:'fisico',  label:'Físico',      peso:0.10, attrs:['Movilidad-Estabilidad','Habilidades básicas','Coordinación','Velocidad','Resistencia'] },
+  { key:'mental',  label:'Mentalidad',  peso:0.10, attrs:['Concentración','Puntos clave','Compañerismo','Confianza'] },
+  { key:'smash',   label:'Smash',       peso:0.05, attrs:['Efectividad','X3'] },
+];
+
+// uid del jugador que se está valorando actualmente
+let _valorandoUid = null;
+
+// Calcula el score de una categoría (promedio de sus atributos)
+function _calcCatScore(catData) {
+  if(!catData) return null;
+  const vals = Object.values(catData).filter(v => typeof v === 'number');
+  if(!vals.length) return null;
+  return Math.round(vals.reduce((a,b) => a+b, 0) / vals.length);
+}
+
+// Calcula el rating general ponderado a partir de los scores por categoría
+function _calcRating(scores) {
+  let total = 0, pesoTotal = 0;
+  VAL_CATS.forEach(cat => {
+    const s = scores[cat.key];
+    if(s !== null && s !== undefined) { total += s * cat.peso; pesoTotal += cat.peso; }
+  });
+  if(!pesoTotal) return null;
+  return Math.round(total / pesoTotal);
+}
+
+// Calcula subcategoría Pareto 80/20:
+// 40% inferior = Baja, 20% central = Firme, 40% superior = Alta
+function _calcSubcat(miRating, ratings) {
+  if(!ratings.length) return 'Firme';
+  const sorted = [...ratings].sort((a,b) => a-b);
+  const n = sorted.length;
+  const p40 = sorted[Math.floor(n * 0.4)] ?? sorted[n-1];
+  const p60 = sorted[Math.floor(n * 0.6)] ?? sorted[n-1];
+  if(miRating > p60) return 'Alta';
+  if(miRating < p40) return 'Baja';
+  return 'Firme';
+}
+
+// Agrega promedio de valoraciones recibidas por el jugador
+async function _getValoraciones(uid) {
+  try {
+    const snap = await db.collection('valoraciones').doc(uid).collection('ratings').get();
+    if(snap.empty) return null;
+    const ratings = snap.docs.map(d => d.data());
+    return ratings;
+  } catch(e) { console.error(e); return null; }
+}
+
+// Promedia todas las valoraciones de una lista para obtener scores por categoría
+function _promediarValoraciones(ratings) {
+  if(!ratings.length) return null;
+  const result = {};
+  VAL_CATS.forEach(cat => {
+    const catScores = ratings.map(r => {
+      const catData = r[cat.key];
+      return _calcCatScore(catData);
+    }).filter(s => s !== null);
+    result[cat.key] = catScores.length ? Math.round(catScores.reduce((a,b)=>a+b,0)/catScores.length) : null;
+    // Promediar subatributos también
+    result[cat.key+'_attrs'] = cat.attrs.map((_, i) => {
+      const vals = ratings.map(r => r[cat.key]?.[i]).filter(v => typeof v === 'number');
+      return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 50;
+    });
+    result[cat.key+'_magia'] = undefined;
+  });
+  // Magia
+  const magiaVals = ratings.map(r => r['magia']?.[0]).filter(v => typeof v === 'number');
+  result['magia'] = magiaVals.length ? Math.round(magiaVals.reduce((a,b)=>a+b,0)/magiaVals.length) : null;
+  return result;
+}
+
+function _gaugeColor(score) {
+  if(score >= 75) return '#1D9E75';
+  if(score >= 55) return '#BA7517';
+  return '#D85A30';
+}
+
+function _subcatColor(subcat) {
+  if(subcat==='Alta') return '#1D9E75';
+  if(subcat==='Baja') return '#D85A30';
+  return '#BA7517';
+}
+
+// Renderiza el panel de atributos dentro del perfil
+async function renderPanelAtributos(uid, categoriaJugador) {
+  const containerId = 'panel-atributos-container';
+  const el = document.getElementById(containerId);
+  if(!el) return;
+
+  el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--color-text-secondary,#888780);font-size:13px">Cargando atributos...</div>';
+
+  const todasLasValoraciones = await _getValoraciones(uid);
+  if(!todasLasValoraciones || !todasLasValoraciones.length) {
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--color-text-secondary,#888780);font-size:13px">Sin valoraciones aún</div>';
+    return;
+  }
+
+  // Separar por categoría del evaluador
+  const mismaCat = todasLasValoraciones.filter(r => r.categoriaevaluador === categoriaJugador);
+  const otrasCats = todasLasValoraciones.filter(r => r.categoriaevaluador !== categoriaJugador);
+
+  const scores = _promediarValoraciones(mismaCat.length ? mismaCat : todasLasValoraciones);
+  const rating = _calcRating(scores);
+
+  // Calcular subcategoría comparando con todos los jugadores de la misma categoría
+  const catRatings = allUsers
+    .filter(u => u.uid !== uid && (u.perfil?.categoria || '') === categoriaJugador && u.ratingGeneral)
+    .map(u => u.ratingGeneral);
+  if(rating) catRatings.push(rating);
+  const subcat = rating ? _calcSubcat(rating, catRatings) : null;
+
+  // Render principal
+  let html = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-size:36px;font-weight:500;color:var(--color-text-primary,#1a1a18);line-height:1">${rating ?? '—'}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary,#888780);margin-top:2px">Rating general</div>
+        ${subcat ? `<div style="font-size:12px;font-weight:500;color:${_subcatColor(subcat)};margin-top:2px">${categoriaJugador} ${subcat}</div>` : ''}
+      </div>
+      <div style="text-align:right;font-size:11px;color:var(--color-text-secondary,#888780)">
+        ${mismaCat.length} valorac. de ${categoriaJugador}<br>
+        ${otrasCats.length ? `${otrasCats.length} de otras categorías` : ''}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">`;
+
+  VAL_CATS.forEach(cat => {
+    const s = scores[cat.key] ?? '—';
+    const attrs = scores[cat.key+'_attrs'] || cat.attrs.map(()=>50);
+    const color = typeof s === 'number' ? _gaugeColor(s) : '#B4B2A9';
+    html += `
+      <div style="background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;padding:10px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:500;color:var(--color-text-secondary,#888780);text-transform:uppercase;letter-spacing:.5px">${cat.label}</span>
+          <span style="font-size:20px;font-weight:500;color:var(--color-text-primary,#1a1a18)">${s}</span>
+        </div>
+        <div style="height:5px;background:var(--color-background-secondary,#f1efe8);border-radius:3px;margin-bottom:8px">
+          <div style="height:100%;border-radius:3px;background:${color};width:${typeof s==='number'?s:50}%"></div>
+        </div>
+        <div style="font-size:11px">
+          ${cat.attrs.map((a,i)=>`<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:0.5px solid var(--color-border-tertiary,#e5e4df)"><span style="color:var(--color-text-secondary,#888780)">${a}</span><span style="font-weight:500;color:var(--color-text-primary,#1a1a18)">${attrs[i]}</span></div>`).join('')}
+        </div>
+      </div>`;
+  });
+
+  html += `</div>`;
+
+  // Magia
+  if(scores.magia !== null && scores.magia !== undefined) {
+    html += `<div style="display:inline-flex;align-items:center;gap:6px;background:var(--color-background-secondary,#f1efe8);border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--color-text-secondary,#888780)">Magia: <strong style="color:var(--color-text-primary,#1a1a18)">${scores.magia}</strong> <span style="font-size:10px">(no incide en rating)</span></div>`;
+  }
+
+  // Panel de otras categorías si hay
+  if(otrasCats.length) {
+    const scoresOtras = _promediarValoraciones(otrasCats);
+    const ratingOtras = _calcRating(scoresOtras);
+    html += `
+      <div style="margin-top:14px;padding:10px 12px;background:var(--color-background-secondary,#f1efe8);border-radius:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df)">
+        <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary,#888780);margin-bottom:4px">Valoraciones de otras categorías</div>
+        <div style="font-size:22px;font-weight:500;color:var(--color-text-primary,#1a1a18)">${ratingOtras ?? '—'}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary,#888780)">${otrasCats.length} valoración(es)</div>
+      </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// ── Abrir modal de valoración ──
+async function abrirValoracion(uid) {
+  _valorandoUid = uid;
+  const u = allUsers.find(x => x.uid === uid);
+  const nombre = _fmtApodo(u?.perfil?.apodo || (u?.email?.split('@')[0]) || 'Jugador');
+  document.getElementById('m-valoracion-nombre').textContent = nombre;
+
+  // Cargar valoración previa si existe
+  let prev = null;
+  try {
+    const snap = await db.collection('valoraciones').doc(uid).collection('ratings').doc(CURRENT_USER.uid).get();
+    if(snap.exists) prev = snap.data();
+  } catch(e) {}
+
+  // Inicializar sliders
+  VAL_CATS.forEach(cat => {
+    cat.attrs.forEach((_, i) => {
+      const val = prev?.[cat.key]?.[i] ?? 50;
+      const slider = document.getElementById(`va-${cat.key}-${i}`);
+      const numEl = document.getElementById(`vn-${cat.key}-${i}`);
+      if(slider) { slider.value = val; }
+      if(numEl) numEl.textContent = val;
+    });
+    onValSlider(cat.key);
+  });
+  // Magia
+  const magiaVal = prev?.magia?.[0] ?? 50;
+  const magiaSlider = document.getElementById('va-magia-0');
+  const magiaNum = document.getElementById('vn-magia-0');
+  if(magiaSlider) magiaSlider.value = magiaVal;
+  if(magiaNum) magiaNum.textContent = magiaVal;
+  onValSlider('magia');
+
+  openModal('m-valoracion');
+}
+
+// Actualiza el badge de score de una categoría en el modal
+function onValSlider(catKey) {
+  const cat = VAL_CATS.find(c => c.key === catKey);
+  const numAttrs = cat ? cat.attrs.length : 1;
+  let sum = 0;
+  for(let i = 0; i < numAttrs; i++) {
+    const slider = document.getElementById(`va-${catKey}-${i}`);
+    const numEl = document.getElementById(`vn-${catKey}-${i}`);
+    const val = slider ? parseInt(slider.value) : 50;
+    if(numEl) numEl.textContent = val;
+    sum += val;
+  }
+  const avg = Math.round(sum / numAttrs);
+  const badge = document.getElementById(`vs-${catKey}`);
+  if(badge) badge.textContent = avg;
+}
+
+// Guardar valoración en Firestore
+async function guardarValoracion() {
+  if(!_valorandoUid) return;
+  const catEvaluador = userData?.perfil?.categoria || '';
+  const data = { categoriaevaluador: catEvaluador, fecha: new Date().toISOString().slice(0,10) };
+
+  VAL_CATS.forEach(cat => {
+    data[cat.key] = cat.attrs.map((_, i) => {
+      const slider = document.getElementById(`va-${cat.key}-${i}`);
+      return slider ? parseInt(slider.value) : 50;
+    });
+  });
+  // Magia
+  const magiaSlider = document.getElementById('va-magia-0');
+  data['magia'] = [magiaSlider ? parseInt(magiaSlider.value) : 50];
+
+  try {
+    await db.collection('valoraciones').doc(_valorandoUid).collection('ratings').doc(CURRENT_USER.uid).set(data);
+    toast('Valoración guardada');
+    closeModal('m-valoracion');
+    // Refrescar panel
+    const u = allUsers.find(x => x.uid === _valorandoUid);
+    await renderPanelAtributos(_valorandoUid, u?.perfil?.categoria || '');
+  } catch(e) {
+    console.error(e);
+    toast('Error al guardar valoración');
+  }
+}
+
+// Verifica si el usuario actual puede valorar a uid
+// (han jugado juntos según partidos vinculados, o es entrenador)
+function _puedeValorar(uid) {
+  if(!CURRENT_USER || CURRENT_USER.uid === uid) return false;
+  const esEntrenador = userData?.perfil?.rol === 'entrenador';
+  if(esEntrenador) return true;
+  // Verificar si han jugado en el mismo torneo (equipoUids)
+  const torneos = userData?.torneos || [];
+  return torneos.some(t => {
+    const uids = Object.values(t.equipoUids || {}).flat();
+    return uids.includes(uid) && uids.includes(CURRENT_USER.uid);
+  });
+}

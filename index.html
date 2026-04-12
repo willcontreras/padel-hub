@@ -58,14 +58,14 @@ function dbg(msg){console.log("[dbg]",msg);const el=document.getElementById("deb
     </div>
     <button onclick="fbSignOut()" style="background:none;border:none;font-size:12px;color:var(--color-text-secondary,#888780);cursor:pointer;font-family:inherit;width:100%;padding:6px;text-align:center">← Usar otra cuenta</button>
   </div>
-  <div style="text-align:center;padding:12px 0 4px;font-size:10px;font-weight:600;color:var(--color-text-secondary,#888780);opacity:0.5">v1.44</div>
+  <div style="text-align:center;padding:12px 0 4px;font-size:10px;font-weight:600;color:var(--color-text-secondary,#888780);opacity:0.5">v1.35</div>
 </div>
 
 <!-- APP -->
 <div id="s-app">
   <div class="topbar">
     <div class="topbar-left" id="topbar-left">
-      <span class="topbar-logo">🎾 Pádel Hub</span><span style="font-size:10px;font-weight:600;color:var(--color-text-secondary,#888780);margin-left:6px;opacity:0.7">v1.44</span>
+      <span class="topbar-logo">🎾 Pádel Hub</span><span style="font-size:10px;font-weight:600;color:var(--color-text-secondary,#888780);margin-left:6px;opacity:0.7">v1.40</span>
     </div>
     <!-- Badge de modo + switcher, solo visible en home -->
     <!-- Botón de tema: siempre visible -->
@@ -735,6 +735,72 @@ function dbg(msg){console.log("[dbg]",msg);const el=document.getElementById("deb
 </div>
 </div>
 
+
+<!-- MODAL VALORACIÓN -->
+<div class="modal-bg" id="m-valoracion" style="display:none" onclick="closeModal('m-valoracion')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Valorar jugador</div>
+    <div id="m-valoracion-nombre" style="font-size:13px;color:var(--color-text-secondary,#888780);margin-bottom:14px"></div>
+
+    <!-- Defensa -->
+    <div class="val-cat-title">Defensa <span class="val-score-badge" id="vs-defensa">—</span></div>
+    <div class="val-attr-row"><span>Derecha de fondo</span><input type="range" min="1" max="99" value="50" id="va-defensa-0" oninput="onValSlider('defensa')"><span class="val-num" id="vn-defensa-0">50</span></div>
+    <div class="val-attr-row"><span>Revés de fondo</span><input type="range" min="1" max="99" value="50" id="va-defensa-1" oninput="onValSlider('defensa')"><span class="val-num" id="vn-defensa-1">50</span></div>
+    <div class="val-attr-row"><span>Resto</span><input type="range" min="1" max="99" value="50" id="va-defensa-2" oninput="onValSlider('defensa')"><span class="val-num" id="vn-defensa-2">50</span></div>
+    <div class="val-attr-row"><span>Transición</span><input type="range" min="1" max="99" value="50" id="va-defensa-3" oninput="onValSlider('defensa')"><span class="val-num" id="vn-defensa-3">50</span></div>
+    <div class="val-attr-row"><span>Consistencia</span><input type="range" min="1" max="99" value="50" id="va-defensa-4" oninput="onValSlider('defensa')"><span class="val-num" id="vn-defensa-4">50</span></div>
+
+    <!-- Globo -->
+    <div class="val-cat-title">Globo <span class="val-score-badge" id="vs-globo">—</span></div>
+    <div class="val-attr-row"><span>Altura</span><input type="range" min="1" max="99" value="50" id="va-globo-0" oninput="onValSlider('globo')"><span class="val-num" id="vn-globo-0">50</span></div>
+    <div class="val-attr-row"><span>Profundidad</span><input type="range" min="1" max="99" value="50" id="va-globo-1" oninput="onValSlider('globo')"><span class="val-num" id="vn-globo-1">50</span></div>
+    <div class="val-attr-row"><span>Decisión táctica</span><input type="range" min="1" max="99" value="50" id="va-globo-2" oninput="onValSlider('globo')"><span class="val-num" id="vn-globo-2">50</span></div>
+
+    <!-- Volea -->
+    <div class="val-cat-title">Volea <span class="val-score-badge" id="vs-volea">—</span></div>
+    <div class="val-attr-row"><span>Derecha</span><input type="range" min="1" max="99" value="50" id="va-volea-0" oninput="onValSlider('volea')"><span class="val-num" id="vn-volea-0">50</span></div>
+    <div class="val-attr-row"><span>Revés</span><input type="range" min="1" max="99" value="50" id="va-volea-1" oninput="onValSlider('volea')"><span class="val-num" id="vn-volea-1">50</span></div>
+    <div class="val-attr-row"><span>Presión</span><input type="range" min="1" max="99" value="50" id="va-volea-2" oninput="onValSlider('volea')"><span class="val-num" id="vn-volea-2">50</span></div>
+    <div class="val-attr-row"><span>Contención</span><input type="range" min="1" max="99" value="50" id="va-volea-3" oninput="onValSlider('volea')"><span class="val-num" id="vn-volea-3">50</span></div>
+    <div class="val-attr-row"><span>Bloqueo</span><input type="range" min="1" max="99" value="50" id="va-volea-4" oninput="onValSlider('volea')"><span class="val-num" id="vn-volea-4">50</span></div>
+
+    <!-- Juego aéreo -->
+    <div class="val-cat-title">Juego aéreo <span class="val-score-badge" id="vs-aereo">—</span></div>
+    <div class="val-attr-row"><span>Bandeja</span><input type="range" min="1" max="99" value="50" id="va-aereo-0" oninput="onValSlider('aereo')"><span class="val-num" id="vn-aereo-0">50</span></div>
+    <div class="val-attr-row"><span>Víbora</span><input type="range" min="1" max="99" value="50" id="va-aereo-1" oninput="onValSlider('aereo')"><span class="val-num" id="vn-aereo-1">50</span></div>
+    <div class="val-attr-row"><span>Rulo / Gancho</span><input type="range" min="1" max="99" value="50" id="va-aereo-2" oninput="onValSlider('aereo')"><span class="val-num" id="vn-aereo-2">50</span></div>
+
+    <!-- Físico -->
+    <div class="val-cat-title">Físico <span class="val-score-badge" id="vs-fisico">—</span></div>
+    <div class="val-attr-row"><span>Movilidad-Estabilidad</span><input type="range" min="1" max="99" value="50" id="va-fisico-0" oninput="onValSlider('fisico')"><span class="val-num" id="vn-fisico-0">50</span></div>
+    <div class="val-attr-row"><span>Habilidades básicas</span><input type="range" min="1" max="99" value="50" id="va-fisico-1" oninput="onValSlider('fisico')"><span class="val-num" id="vn-fisico-1">50</span></div>
+    <div class="val-attr-row"><span>Coordinación</span><input type="range" min="1" max="99" value="50" id="va-fisico-2" oninput="onValSlider('fisico')"><span class="val-num" id="vn-fisico-2">50</span></div>
+    <div class="val-attr-row"><span>Velocidad</span><input type="range" min="1" max="99" value="50" id="va-fisico-3" oninput="onValSlider('fisico')"><span class="val-num" id="vn-fisico-3">50</span></div>
+    <div class="val-attr-row"><span>Resistencia</span><input type="range" min="1" max="99" value="50" id="va-fisico-4" oninput="onValSlider('fisico')"><span class="val-num" id="vn-fisico-4">50</span></div>
+
+    <!-- Mentalidad -->
+    <div class="val-cat-title">Mentalidad <span class="val-score-badge" id="vs-mental">—</span></div>
+    <div class="val-attr-row"><span>Concentración</span><input type="range" min="1" max="99" value="50" id="va-mental-0" oninput="onValSlider('mental')"><span class="val-num" id="vn-mental-0">50</span></div>
+    <div class="val-attr-row"><span>Puntos clave</span><input type="range" min="1" max="99" value="50" id="va-mental-1" oninput="onValSlider('mental')"><span class="val-num" id="vn-mental-1">50</span></div>
+    <div class="val-attr-row"><span>Compañerismo</span><input type="range" min="1" max="99" value="50" id="va-mental-2" oninput="onValSlider('mental')"><span class="val-num" id="vn-mental-2">50</span></div>
+    <div class="val-attr-row"><span>Confianza</span><input type="range" min="1" max="99" value="50" id="va-mental-3" oninput="onValSlider('mental')"><span class="val-num" id="vn-mental-3">50</span></div>
+
+    <!-- Smash -->
+    <div class="val-cat-title">Smash <span class="val-score-badge" id="vs-smash">—</span></div>
+    <div class="val-attr-row"><span>Efectividad</span><input type="range" min="1" max="99" value="50" id="va-smash-0" oninput="onValSlider('smash')"><span class="val-num" id="vn-smash-0">50</span></div>
+    <div class="val-attr-row"><span>X3</span><input type="range" min="1" max="99" value="50" id="va-smash-1" oninput="onValSlider('smash')"><span class="val-num" id="vn-smash-1">50</span></div>
+
+    <!-- Magia -->
+    <div class="val-cat-title">Magia <span style="font-size:10px;color:var(--color-text-secondary,#888780);font-weight:400">(no incide en rating)</span> <span class="val-score-badge" id="vs-magia">—</span></div>
+    <div class="val-attr-row"><span>Magia general</span><input type="range" min="1" max="99" value="50" id="va-magia-0" oninput="onValSlider('magia')"><span class="val-num" id="vn-magia-0">50</span></div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn" onclick="guardarValoracion()">Guardar valoración</button>
+      <button class="btn btn-outline" onclick="closeModal('m-valoracion')">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
