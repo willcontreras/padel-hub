@@ -911,6 +911,12 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
   });
   auth.onAuthStateChanged(async user=>{
     if(user){
+      // Si es usuario anónimo con hash de pagos, ir directo a pagos
+      if(user.isAnonymous && window.location.hash.startsWith('#pagos/')){
+        const tid=window.location.hash.replace('#pagos/','');
+        mostrarPagosPublico(tid);
+        return;
+      }
       logAuth('onAuthStateChanged: usuario='+user.email);
       window.CURRENT_USER=user;
       const ref=db.collection('users').doc(user.uid);
@@ -941,6 +947,10 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
 // ── Vista pública de pagos (sin login) ──
 async function mostrarPagosPublico(tid) {
   hide('s-login'); hide('s-rol'); hide('s-app');
+  // Autenticar anónimamente para poder leer y escribir Firestore
+  if(!auth.currentUser) {
+    try { await auth.signInAnonymously(); } catch(e) { console.error('Anon auth error:', e); }
+  }
 
   // Crear pantalla de pagos público si no existe
   let screen = document.getElementById('s-pagos-publico');
