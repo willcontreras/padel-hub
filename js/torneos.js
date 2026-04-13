@@ -271,7 +271,7 @@ async function crearTorneo(){
     const puestos=[];
     for(let i=0;i<n/2;i++){
       puestos.push({
-        id:partidos.length+1,
+        id:partidos.length+puestos.length+1,
         eq1:`${i*2+1}° clasificado`,eq2:`${i*2+2}° clasificado`,
         s1a:null,s1b:null,jugado:false,ganadorA:null,
         ronda:rondasFase+1,cancha:i+1,
@@ -602,10 +602,14 @@ function _renderTorneoDetalle(t,canEdit){
     ranked.forEach((r,i)=>{
       const uids=t.equipoUids?.[r.nombre]||[];
       const parts=r.nombre.includes(' - ')?r.nombre.split(' - '):[r.nombre];
+      const parejaIdx=t.jugadores.indexOf(r.nombre);
       const nameHTML=parts.map((p,pi)=>{
         const uid=uids[pi];
-        return uid?`<span onclick="verJugador('${uid}')" class="player-linked">${_apodoCorto(p.trim())}</span>`:_apodoCorto(p.trim());
-      }).join(' - ');
+        const nombre=_apodoCorto(p.trim());
+        const linkedName=uid?`<span onclick="verJugador('${uid}')" class="player-linked">${nombre}</span>`:`<span>${nombre}</span>`;
+        const vincBtn=canEdit?`<span onclick="vincularJugadorNonGrupo('${t.id}',${parejaIdx},${pi})" style="cursor:pointer;font-size:11px;opacity:${uid?'1':'0.3'};color:${uid?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}" title="${uid?'Vinculado · click para desvincular':'Vincular a usuario'}">👤</span>`:'';
+        return linkedName+vincBtn;
+      }).join(' <span style="color:var(--color-text-secondary,#888780);font-size:10px">—</span> ');
       const dif=r.gamesA-r.gamesB;
       const difStr=(dif>0?'+':'')+dif;
       const difColor=dif>0?'#1D9E75':dif<0?'#D85A30':'var(--color-text-secondary,#888780)';
@@ -615,7 +619,12 @@ function _renderTorneoDetalle(t,canEdit){
         <td style="padding:7px 4px">
           <span style="width:18px;height:18px;border-radius:50%;background:${isTop2?'#C9960C22':'var(--color-background-secondary,#f1efe8)'};color:${isTop2?'#C9960C':'#888780'};font-size:10px;font-weight:600;display:inline-flex;align-items:center;justify-content:center">${i+1}</span>
         </td>
-        <td style="padding:7px 4px;font-size:12px;color:var(--color-text-primary,#1a1a18);font-weight:${isTop2?'600':'400'}">${nameHTML}</td>
+        <td style="padding:7px 4px;font-size:12px;color:var(--color-text-primary,#1a1a18);font-weight:${isTop2?'600':'400'}">
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            ${nameHTML}
+            ${canEdit&&parejaIdx>=0?`<button onclick="editarNombreParejaDirecta('${t.id}',${parejaIdx})" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0;opacity:0.3" title="Editar nombre">✏️</button>`:''}
+          </div>
+        </td>
         <td style="padding:7px 4px;text-align:center;color:var(--color-text-secondary,#888780)">${r.pj}</td>
         <td style="padding:7px 4px;text-align:center;color:#1D9E75;font-weight:600">${r.pg}</td>
         <td style="padding:7px 4px;text-align:center;color:#D85A30">${r.pp}</td>
@@ -646,6 +655,39 @@ function _renderTorneoDetalle(t,canEdit){
       h+=`<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--color-border-tertiary,#e5e4df)">`;
       h+=`<div style="font-size:11px;font-weight:600;color:#BA7517;letter-spacing:.5px;margin-bottom:8px">⚡ FASE FINAL · ${duracion} min</div>`;
       finalPartidos.forEach(p=>{ h+=_renderPartidoRR(p,t,canEdit); });
+
+      // Posiciones finales — mostrar si todos los finales están jugados
+      const finalesJugados=finalPartidos.filter(p=>p.jugado);
+      if(finalesJugados.length===finalPartidos.length&&finalPartidos.length>0){
+        const posiciones=[];
+        finalPartidos.forEach((p,i)=>{
+          const ganador=p.ganadorA?p.eq1:p.eq2;
+          const perdedor=p.ganadorA?p.eq2:p.eq1;
+          posiciones.push({pos:i*2+1,nombre:ganador,score:p.ganadorA?`${p.s1a}-${p.s1b}`:`${p.s1b}-${p.s1a}`});
+          posiciones.push({pos:i*2+2,nombre:perdedor,score:p.ganadorA?`${p.s1b}-${p.s1a}`:`${p.s1a}-${p.s1b}`});
+        });
+        posiciones.sort((a,b)=>a.pos-b.pos);
+
+        const medals=['🥇','🥈','🥉'];
+        h+=`<div style="margin-top:14px;background:var(--color-background-secondary,#f1efe8);border-radius:12px;overflow:hidden">`;
+        h+=`<div style="padding:8px 12px;font-size:11px;font-weight:600;color:#BA7517;letter-spacing:.5px">🏆 POSICIONES FINALES</div>`;
+        posiciones.forEach(r=>{
+          const medal=medals[r.pos-1]||'';
+          const uids=t.equipoUids?.[r.nombre]||[];
+          const parts=r.nombre.includes(' - ')?r.nombre.split(' - '):[r.nombre];
+          const nameHTML=parts.map((p,pi)=>{
+            const uid=uids[pi];
+            return uid?`<span onclick="verJugador('${uid}')" class="player-linked">${_apodoCorto(p.trim())}</span>`:_apodoCorto(p.trim());
+          }).join(' - ');
+          h+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:0.5px solid var(--color-border-tertiary,#e5e4df);background:${r.pos<=2?'rgba(201,150,12,0.05)':''}">
+            <span style="font-size:18px;width:24px;text-align:center">${medal||r.pos+'°'}</span>
+            <span style="flex:1;font-size:13px;font-weight:${r.pos<=2?'600':'400'};color:var(--color-text-primary,#1a1a18)">${nameHTML}</span>
+            <span style="font-size:11px;color:var(--color-text-secondary,#888780)">${r.score}</span>
+          </div>`;
+        });
+        h+=`</div>`;
+      }
+
       h+=`</div>`;
     }
 
@@ -1723,29 +1765,9 @@ async function _confirmarVincular(uid,apodo){
   const uids=t.equipoUids[nombre]||[null,null];
   uids[playerIdx]=uid;
 
-  // Rename the player slot to their registered apodo
-  const sep=nombre.includes(' - ')?' - ':nombre.includes(' / ')?' / ':null;
-  let nuevoNombre=nombre;
-  if(sep){
-    const parts=nombre.split(sep);
-    parts[playerIdx]=apodo;
-    nuevoNombre=parts.join(sep);
-  } else {
-    nuevoNombre=apodo;
-  }
-
-  if(nuevoNombre!==nombre){
-    // Rename everywhere: members, partidos, playoffs, pagos, equipoUids
-    const gr=t.grupos?.find(g=>g.members?.includes(nombre));
-    if(gr){const mi=gr.members.indexOf(nombre);if(mi!==-1)gr.members[mi]=nuevoNombre;}
-    t.partidos.forEach(p=>{if(p.eq1===nombre)p.eq1=nuevoNombre;if(p.eq2===nombre)p.eq2=nuevoNombre;});
-    (t.playoffs||[]).forEach(m=>{if(m.eq1===nombre)m.eq1=nuevoNombre;if(m.eq2===nombre)m.eq2=nuevoNombre;});
-    if(t.pagos&&t.pagos[nombre]!==undefined){t.pagos[nuevoNombre]=t.pagos[nombre];delete t.pagos[nombre];}
-    t.equipoUids[nuevoNombre]=uids;
-    delete t.equipoUids[nombre];
-  } else {
-    t.equipoUids[nombre]=uids;
-  }
+  // Solo guardar el UID — NO renombrar la pareja automáticamente
+  // El nombre original se mantiene; el apodo del usuario se muestra via equipoUids
+  t.equipoUids[nombre]=uids;
 
   await saveData();
   document.getElementById('m-vincular-usuario')?.remove();
