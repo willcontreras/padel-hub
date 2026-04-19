@@ -1075,7 +1075,7 @@ function renderPagosTorneo(){
       </div>
       <div style="border-top:0.5px solid var(--color-border-tertiary,#e5e4df);margin:8px 0"></div>
       <div style="display:flex;justify-content:space-between;font-size:14px">
-        <span style="font-weight:600;color:var(--color-text-primary,#1a1a18)">Cuota por pareja</span>
+        <span style="font-weight:600;color:var(--color-text-primary,#1a1a18)">Cuota por jugador</span>
         <strong id="rr-cuota" style="color:var(--g,#1D9E75);font-size:16px">${cuota>0?_fmtMonto(cuota):'—'}</strong>
       </div>
     </div>
@@ -1127,12 +1127,19 @@ function rrActualizarGasto(tid,campo,valor){
 
 function _rrActualizarResumen(t){
   const g=t.gastos||{};
-  const jugadores=t.jugadores||[];
+  const parejas=t.jugadores||[];
+  // Expandir en jugadores individuales para cuota correcta
+  const numJug=parejas.flatMap(p=>{
+    if(!p||typeof p!=='string') return [];
+    const sep=p.includes(' - ')?' - ':p.includes(' / ')?' / ':null;
+    if(sep) return p.split(sep).map(j=>j.trim()).filter(Boolean);
+    return p.trim()?[p.trim()]:[];
+  }).length||1;
   const totalCanchas=(g.canchas||0)*(g.numCanchas||1);
   const totalPelotas=(g.pelotas||0)*(g.numTarros||0);
   const totalExtras=(g.extras||[]).reduce((s,e)=>s+(e.valor||0),0);
   const total=totalCanchas+totalPelotas+totalExtras;
-  const cuota=jugadores.length>0?Math.ceil(total/jugadores.length):0;
+  const cuota=numJug>0?Math.ceil(total/numJug):0;
   // Actualizar subtotales y resumen sin tocar los inputs
   const subCanchas=document.getElementById('rr-sub-canchas');
   const subPelotas=document.getElementById('rr-sub-pelotas');
