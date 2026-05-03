@@ -748,9 +748,9 @@ function _renderTorneoDetalle(t,canEdit){
     h+=`<div style="display:grid;grid-template-columns:repeat(${numG},1fr);gap:8px;margin-bottom:10px;align-items:start">`;
     t.grupos.forEach((gr,gi)=>{
       h+=`<div style="display:flex;flex-direction:column;gap:5px">`;
-      const fechas=[...new Set(t.partidos.filter(p=>p.grupo===gr.letra).map(p=>p.fecha))].sort((a,b)=>a-b);
+      const fechas=[...new Set(t.partidos.filter(p=>p.grupo===gr.letra).map(p=>p.ronda))].sort((a,b)=>a-b);
       fechas.forEach(rf=>{
-        const rp=t.partidos.filter(p=>p.grupo===gr.letra&&p.fecha===rf);
+        const rp=t.partidos.filter(p=>p.grupo===gr.letra&&p.ronda===rf);
         h+=`<div style="border-radius:7px;overflow:hidden;border:1px solid ${GHdr[gi%4]}33"><div style="background:${GHdr[gi%4]}22;color:${GBadge[gi%4]};font-size:11px;font-weight:700;letter-spacing:1px;padding:5px 7px;text-align:center;border-bottom:1px solid ${GHdr[gi%4]}22">FECHA ${rf}</div>`;
         rp.forEach(p=>{
           const wA=p.jugado&&p.ganadorA,wB=p.jugado&&!p.ganadorA;
@@ -1316,8 +1316,8 @@ async function generarImagenFixture(tid){
   // ── Calcular alturas de columnas de grupos ──
   const colH=t.grupos.map(gr=>{
     let h=GHH+8+gr.members.length*PH+10;
-    const fs=[...new Set(t.partidos.filter(p=>p.grupo===gr.letra).map(p=>p.fecha))].sort((a,b)=>a-b);
-    fs.forEach(rf=>{h+=SGAP+FHH+t.partidos.filter(p=>p.grupo===gr.letra&&p.fecha===rf).length*MH+8;});
+    const fs=[...new Set(t.partidos.filter(p=>p.grupo===gr.letra).map(p=>p.ronda))].sort((a,b)=>a-b);
+    fs.forEach(rf=>{h+=SGAP+FHH+t.partidos.filter(p=>p.grupo===gr.letra&&p.ronda===rf).length*MH+8;});
     return h;
   });
   const gruposBodyH=Math.max(...colH);
@@ -1383,10 +1383,10 @@ async function generarImagenFixture(tid){
       cx.font='bold 12px Arial,sans-serif';cx.fillStyle='#e0ffe8';cx.textAlign='left';
       cx.fillText(_trunc(cx,_apodoCorto(name),COL_W-24),x+14,y+15);y+=PH;
     });y+=10;
-    const fechas=[...new Set(t.partidos.filter(p=>p.grupo===gr.letra).map(p=>p.fecha))].sort((a,b)=>a-b);
+    const fechas=[...new Set(t.partidos.filter(p=>p.grupo===gr.letra).map(p=>p.ronda))].sort((a,b)=>a-b);
     fechas.forEach(rf=>{
       y+=SGAP;
-      const rp=t.partidos.filter(p=>p.grupo===gr.letra&&p.fecha===rf);
+      const rp=t.partidos.filter(p=>p.grupo===gr.letra&&p.ronda===rf);
       const bH=FHH+rp.length*MH+8;
       _rrect(cx,x,y,COL_W,bH,8,gc.l,gc.bd,0.7);
       _rrect(cx,x,y,COL_W,FHH,8,gc.h+'cc',null,0,true);
