@@ -319,7 +319,7 @@ async function crearTorneo(){
           id:partidos.length+1,
           eq1:p.eq1,eq2:p.eq2,
           s1a:null,s1b:null,jugado:false,ganadorA:null,
-          ronda:ri+1,cancha:ci+1,
+          ronda:ri+1,cancha:canchasReales.length>0?canchasReales[ci%canchasReales.length]:ci+1,
           esFase:true
         });
       });
@@ -333,7 +333,7 @@ async function crearTorneo(){
         id:partidos.length+puestos.length+1,
         eq1:`${i*2+1}° clasificado`,eq2:`${i*2+2}° clasificado`,
         s1a:null,s1b:null,jugado:false,ganadorA:null,
-        ronda:rondasFase+1,cancha:i+1,
+        ronda:rondasFase+1,cancha:canchasReales.length>0?canchasReales[i%canchasReales.length]:i+1,
         esFinal:true,
         puesto:`${i*2+1}°-${i*2+2}°`
       });
@@ -642,6 +642,63 @@ function _actualizarFinalesRR(t){
   });
 }
 
+async function generarFaseFinalRR(tid){
+  const t=_findTorneo(tid);if(!t)return;
+  const pts={};
+  t.jugadores.forEach(j=>{pts[j]={nombre:j,gamesA:0,gamesB:0,pg:0};});
+  (t.partidos||[]).filter(p=>p.esFase&&p.jugado).forEach(p=>{
+    if(!pts[p.eq1])pts[p.eq1]={nombre:p.eq1,gamesA:0,gamesB:0,pg:0};
+    if(!pts[p.eq2])pts[p.eq2]={nombre:p.eq2,gamesA:0,gamesB:0,pg:0};
+    pts[p.eq1].gamesA+=(p.s1a||0);pts[p.eq1].gamesB+=(p.s1b||0);
+    pts[p.eq2].gamesA+=(p.s1b||0);pts[p.eq2].gamesB+=(p.s1a||0);
+    if((p.s1a||0)>(p.s1b||0))pts[p.eq1].pg++;else pts[p.eq2].pg++;
+  });
+  const ranked=Object.values(pts).sort((a,b)=>(b.gamesA-b.gamesB)-(a.gamesA-a.gamesB)||b.pg-a.pg);
+  const cr=t.canchasReales||(t.numCanchas>0?Array.from({length:t.numCanchas},(_,i)=>i+1):[]);
+  const N=cr.length||Math.floor(ranked.length/2);
+  const labels=['🥇 1° y 2° Lugar','🥉 3° y 4° Lugar','5° y 6° Lugar','7° y 8° Lugar','9° y 10° Lugar'];
+  const faseFinal=[];
+  for(let i=0;i<Math.min(N,Math.floor(ranked.length/2));i++){
+    faseFinal.push({id:`ff_${i}`,label:labels[i]||`${i*2+1}° y ${i*2+2}° Lugar`,eq1:ranked[i*2]?.nombre||'—',eq2:ranked[i*2+1]?.nombre||'—',s1a:null,s1b:null,jugado:false,ganadorA:null,cancha:cr.length>0?cr[i%cr.length]:i+1});
+  }
+  t.faseFinal=faseFinal;
+  await saveData();renderTorneo();toast('Fase final generada');
+}
+async function _abrirResultadoFF(tid,matchId){
+  const t=_findTorneo(tid);if(!t)return;
+  const p=t.faseFinal?.find(x=>x.id===matchId);if(!p)return;
+  const sheet=document.createElement('div');
+  sheet.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:flex-end;justify-content:center';
+  sheet.onclick=e=>{if(e.target===sheet)sheet.remove();};
+  sheet.innerHTML=`<div style="background:var(--color-background-primary,#fff);border-radius:18px 18px 0 0;padding:20px 18px 32px;width:100%;max-width:600px;box-sizing:border-box">
+    <div style="width:36px;height:4px;border-radius:2px;background:var(--color-border-secondary,#d3d1c7);margin:0 auto 16px"></div>
+    <div style="font-size:14px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">${p.label||'Resultado'}</div>
+    <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:14px">${_apodoCorto(p.eq1)} vs ${_apodoCorto(p.eq2)}</div>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:16px">
+      <div style="text-align:center"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18);margin-bottom:6px">${_apodoCorto(p.eq1)}</div>
+        <input type="number" id="rr-s1a" min="0" max="99" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/></div>
+      <div style="font-size:14px;font-weight:700;color:var(--color-text-secondary,#888780);text-align:center">VS</div>
+      <div style="text-align:center"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18);margin-bottom:6px">${_apodoCorto(p.eq2)}</div>
+        <input type="number" id="rr-s1b" min="0" max="99" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="guardarResultadoFF('${tid}','${matchId}',this.closest('div[style*=fixed]'))" style="flex:1;background:var(--g,#1D9E75);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Guardar</button>
+      <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:12px 16px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:10px;background:none;font-size:14px;cursor:pointer;font-family:inherit;color:var(--color-text-secondary,#888780)">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(sheet);
+  setTimeout(()=>document.getElementById('rr-s1a')?.focus(),100);
+}
+async function guardarResultadoFF(tid,matchId,sheet){
+  const t=_findTorneo(tid);if(!t)return;
+  const p=t.faseFinal?.find(x=>x.id===matchId);if(!p)return;
+  const a=parseInt(document.getElementById('rr-s1a')?.value);
+  const b=parseInt(document.getElementById('rr-s1b')?.value);
+  if(isNaN(a)||isNaN(b)){toast('Ingresa el resultado');return;}
+  if(a===b){toast('No puede terminar empatado');return;}
+  p.s1a=a;p.s1b=b;p.jugado=true;p.ganadorA=a>b;
+  await saveData();sheet?.remove();renderTorneo();toast('Resultado guardado');
+}
 function _renderTorneoDetalle(t,canEdit){
   let h='';
 
@@ -741,8 +798,64 @@ function _renderTorneoDetalle(t,canEdit){
       h+=`</div>`;
     }
 
-    // Fase final
-    if(finalPartidos.length){
+    // Botón generar fase final (nuevo sistema v1.49)
+    if(canEdit&&!t.faseFinal?.length){
+      const todasJugadas=fasePartidos.length>0&&fasePartidos.every(p=>p.jugado);
+      h+=`<div style="margin-top:12px;text-align:center">
+        <button onclick="generarFaseFinalRR('${t.id}')" style="background:${todasJugadas?'var(--am,#BA7517)':'var(--color-background-secondary,#f1efe8)'};color:${todasJugadas?'#fff':'var(--color-text-secondary,#888780)'};border:0.5px solid ${todasJugadas?'var(--am,#BA7517)':'var(--color-border-tertiary,#e5e4df)'};border-radius:10px;padding:10px 20px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
+          🏆 Generar fase final
+        </button>
+      </div>`;
+    }
+    // Nueva sección faseFinal (generada por admin desde v1.49)
+    if(t.faseFinal?.length){
+      h+=`<div style="margin-top:14px;padding:12px;border:0.5px solid rgba(186,117,23,.25);border-radius:10px">`;
+      h+=`<div style="font-size:13px;font-weight:700;color:var(--am,#BA7517);letter-spacing:1px;text-align:center;margin-bottom:12px">🏆 FASE FINAL</div>`;
+      t.faseFinal.forEach(p=>{
+        const jug=p.jugado,wA=jug&&p.ganadorA,wB=jug&&!p.ganadorA;
+        const puedeCargar=canEdit&&!jug;
+        const cA=jug?(wA?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'):'var(--color-text-primary,#1a1a18)';
+        const cB=jug?(wB?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'):'var(--color-text-primary,#1a1a18)';
+        const canchaStr=p.cancha?`<div style="font-size:9px;font-weight:600;color:var(--bl,#378ADD);letter-spacing:0.5px;text-align:center;margin-bottom:3px">🎾 Cancha ${p.cancha}</div>`:'';
+        h+=`<div style="margin-bottom:8px">
+          <div style="font-size:11px;font-weight:600;color:var(--am,#BA7517);letter-spacing:.5px;margin-bottom:3px">${p.label||''}</div>
+          ${canchaStr}
+          <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:4px;background:rgba(128,128,128,0.06);border-radius:8px;padding:10px;cursor:${puedeCargar?'pointer':'default'};${puedeCargar?'border:0.5px dashed rgba(186,117,23,.4)':''}"
+            onclick="${puedeCargar?`_abrirResultadoFF('${t.id}','${p.id}')`:''}" title="${puedeCargar?'Cargar resultado':''}">
+            <div style="text-align:right;font-size:13px;font-weight:600;color:${cA}">${wA?'✓ ':''}${_apodoCorto(p.eq1)}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--am,#BA7517);text-align:center;min-width:40px">${jug?`${p.s1a}-${p.s1b}`:'VS'}</div>
+            <div style="text-align:left;font-size:13px;font-weight:600;color:${cB}">${_apodoCorto(p.eq2)}${wB?' ✓':''}</div>
+          </div>
+        </div>`;
+      });
+      const ffJug=t.faseFinal.filter(p=>p.jugado);
+      if(ffJug.length===t.faseFinal.length&&t.faseFinal.length>0){
+        const pos=[];
+        t.faseFinal.forEach((p,i)=>{
+          pos.push({pos:i*2+1,nombre:p.ganadorA?p.eq1:p.eq2,score:p.ganadorA?`${p.s1a}-${p.s1b}`:`${p.s1b}-${p.s1a}`});
+          pos.push({pos:i*2+2,nombre:p.ganadorA?p.eq2:p.eq1,score:p.ganadorA?`${p.s1b}-${p.s1a}`:`${p.s1a}-${p.s1b}`});
+        });
+        pos.sort((a,b)=>a.pos-b.pos);
+        const medals=['🥇','🥈','🥉'];
+        h+=`<div style="margin-top:10px;background:var(--color-background-secondary,#f1efe8);border-radius:10px;overflow:hidden">`;
+        h+=`<div style="padding:8px 12px;font-size:11px;font-weight:600;color:#BA7517;letter-spacing:.5px">🏆 POSICIONES FINALES</div>`;
+        pos.forEach(r=>{
+          const medal=medals[r.pos-1]||'';
+          const uids=t.equipoUids?.[r.nombre]||[];
+          const parts=r.nombre.includes(' - ')?r.nombre.split(' - '):[r.nombre];
+          const nameHTML=parts.map((pp,pi)=>{const uid=uids[pi];return uid?`<span onclick="verJugador('${uid}')" class="player-linked">${_apodoCorto(pp.trim())}</span>`:_apodoCorto(pp.trim());}).join(' - ');
+          h+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:0.5px solid var(--color-border-tertiary,#e5e4df);background:${r.pos<=2?'rgba(201,150,12,0.05)':''}">
+            <span style="font-size:18px;width:24px;text-align:center">${medal||r.pos+'°'}</span>
+            <span style="flex:1;font-size:13px;font-weight:${r.pos<=2?'600':'400'};color:var(--color-text-primary,#1a1a18)">${nameHTML}</span>
+            <span style="font-size:11px;color:var(--color-text-secondary,#888780)">${r.score}</span>
+          </div>`;
+        });
+        h+=`</div>`;
+      }
+      h+=`</div>`;
+    }
+    // Fase final (sistema anterior — compatibilidad con torneos pre-v1.49)
+    if(!t.faseFinal?.length && finalPartidos.length){
       h+=`<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--color-border-tertiary,#e5e4df)">`;
       h+=`<div style="font-size:11px;font-weight:600;color:#BA7517;letter-spacing:.5px;margin-bottom:8px">⚡ FASE FINAL · ${duracion} min</div>`;
       finalPartidos.forEach(p=>{ h+=_renderPartidoRR(p,t,canEdit); });
