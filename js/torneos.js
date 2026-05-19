@@ -124,7 +124,7 @@ function rrCalcular(){
     preview.innerHTML=`<span style="color:#D85A30">⚠ Tiempo insuficiente. Con partidos de ${duracion} min necesitas al menos ${duracion*2} min totales.</span>`;return;
   }
 
-  const rondasFase=Math.floor((tiempo-duracion)/duracion);
+  const rondasFase=Math.floor(tiempo/duracion)-1;
 
   // Validar canchas y parejas
   if(canchas>0&&parejas>0){
@@ -290,7 +290,7 @@ async function crearTorneo(){
     if(jugadores.length%2!==0){toast('Round Robin requiere un número par de parejas');return;}
     if(numCanchas>0&&numCanchas!==jugadores.length/2){toast(`Con ${jugadores.length} parejas necesitas ${jugadores.length/2} canchas`);return;}
 
-    const rondasFase=Math.floor((tiempo-duracion)/duracion);
+    const rondasFase=Math.floor(tiempo/duracion)-1;
     const n=jugadores.length;
 
     // Algoritmo de polígono (round-robin scheduling)
