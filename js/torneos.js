@@ -206,6 +206,58 @@ function ntInitModal(){
   // Start with 4 empty pairs
   for(let i=0;i<4;i++) ntAgregarPareja();
 }
+function ntClonarJugadores(){
+  const existing=document.getElementById('nt-clonar-picker');
+  if(existing){existing.remove();return;}
+  const torneos=(userData?.torneos||[]).slice(0,5);
+  if(!torneos.length){toast('No hay torneos anteriores');return;}
+  const picker=document.createElement('div');
+  picker.id='nt-clonar-picker';
+  picker.style.cssText='position:fixed;z-index:99999;background:var(--color-background-primary,#fff);border:1px solid var(--color-border-tertiary,#e5e4df);border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:6px;min-width:210px';
+  torneos.forEach(t=>{
+    const n=t.jugadores?.length||0;
+    const item=document.createElement('button');
+    item.type='button';
+    item.style.cssText='display:block;width:100%;text-align:left;background:none;border:none;padding:8px 10px;border-radius:8px;cursor:pointer;font-family:inherit';
+    item.innerHTML=`<div style="font-size:13px;color:var(--color-text-primary,#1a1a18);font-weight:500">${t.nombre||'Sin nombre'}</div><div style="font-size:11px;color:var(--color-text-secondary,#888780);margin-top:2px">${n} pareja${n!==1?'s':''}</div>`;
+    item.onmouseenter=()=>{item.style.background='var(--color-background-secondary,#f1efe8)';};
+    item.onmouseleave=()=>{item.style.background='none';};
+    item.onclick=()=>{ntClonarDesde(t);picker.remove();};
+    picker.appendChild(item);
+  });
+  const btn=document.getElementById('nt-clonar-btn');
+  if(btn){const r=btn.getBoundingClientRect();picker.style.top=(r.bottom+4)+'px';picker.style.left=Math.max(8,r.right-220)+'px';}
+  document.body.appendChild(picker);
+  setTimeout(()=>{
+    const handler=e=>{if(!picker.contains(e.target)){picker.remove();document.removeEventListener('click',handler);}};
+    document.addEventListener('click',handler);
+  },0);
+}
+function ntClonarDesde(torneo){
+  const jugadores=torneo.jugadores||[];
+  if(!jugadores.length){toast('El torneo no tiene parejas');return;}
+  const numCanchas=parseInt(document.getElementById('nt-canchas')?.value)||0;
+  const max=numCanchas>0?numCanchas*2:jugadores.length;
+  const lista=jugadores.slice(0,max);
+  const contenedor=document.getElementById('nt-parejas-lista');
+  if(!contenedor)return;
+  contenedor.innerHTML='';
+  lista.forEach(pareja=>{
+    ntAgregarPareja();
+    const rows=contenedor.querySelectorAll('[data-idx]');
+    const row=rows[rows.length-1];
+    const inputs=row.querySelectorAll('input');
+    const sep=pareja.includes(' / ')?' / ':' - ';
+    const partes=pareja.split(sep);
+    if(inputs[0])inputs[0].value=(partes[0]||'').trim();
+    if(inputs[1])inputs[1].value=(partes[1]||'').trim();
+  });
+  ntActualizarContador();
+  if(lista.length<jugadores.length)
+    toast(`Se copiaron ${lista.length} de ${jugadores.length} parejas (límite por canchas)`);
+  else
+    toast(`${lista.length} parejas copiadas de "${torneo.nombre}"`);
+}
 function selScoring(el){selScoringVal=el.dataset.sc;['sc-games','sc-partidos'].forEach(id=>{const e=document.getElementById(id);if(!e)return;const a=id===('sc-'+selScoringVal);e.style.border=a?'1.5px solid var(--g,#1D9E75)':'1.5px solid var(--color-border-tertiary,#e5e4df)';e.style.background=a?'var(--gl,#E1F5EE)':'';e.querySelector('div').style.color=a?'var(--gd,#0F6E56)':'var(--color-text-primary,#1a1a18)';});}
 function selVisibilidad(el){selVisibilidadVal=el.dataset.vis;['vis-privado','vis-publico'].forEach(id=>{const e=document.getElementById(id);if(!e)return;const a=id===('vis-'+selVisibilidadVal);e.style.border=a?'1.5px solid var(--g,#1D9E75)':'1.5px solid var(--color-border-tertiary,#e5e4df)';e.style.background=a?'var(--gl,#E1F5EE)':'';e.querySelector('div').style.color=a?'var(--gd,#0F6E56)':'var(--color-text-primary,#1a1a18)';});}
 async function crearTorneo(){
