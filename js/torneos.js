@@ -632,7 +632,19 @@ function _actualizarFinalesRR(t){
     if(p.ganadorA){pts[p.eq1].pg++;pts[p.eq2].pp++;}
     else{pts[p.eq2].pg++;pts[p.eq1].pp++;}
   });
-  const ranked=Object.values(pts).sort((a,b)=>(b.gamesA-b.gamesB)-(a.gamesA-a.gamesB)||b.pg-a.pg);
+  const _fp=fasePartidos.filter(p=>p.jugado);
+  const _sc=t.scoring||'games';
+  const ranked=Object.values(pts).sort((a,b)=>{
+    const pA=_sc==='games'?a.gamesA:a.pg*3,pB=_sc==='games'?b.gamesA:b.pg*3;
+    if(pB!==pA)return pB-pA;
+    const dA=a.gamesA-a.gamesB,dB=b.gamesA-b.gamesB;
+    if(dB!==dA)return dB-dA;
+    const h=_fp.find(p=>(p.eq1===a.nombre&&p.eq2===b.nombre)||(p.eq1===b.nombre&&p.eq2===a.nombre));
+    if(h){const aW=(h.eq1===a.nombre&&h.ganadorA)||(h.eq2===a.nombre&&!h.ganadorA);return aW?-1:1;}
+    const k=`${a.nombre}|||${b.nombre}`,kr=`${b.nombre}|||${a.nombre}`;
+    if(t.desempates?.[k])return -1;if(t.desempates?.[kr])return 1;
+    return 0;
+  });
 
   // Asignar clasificados a finales
   const finalPartidos=t.partidos.filter(p=>p.esFinal);
@@ -653,7 +665,19 @@ async function generarFaseFinalRR(tid){
     pts[p.eq2].gamesA+=(p.s1b||0);pts[p.eq2].gamesB+=(p.s1a||0);
     if((p.s1a||0)>(p.s1b||0))pts[p.eq1].pg++;else pts[p.eq2].pg++;
   });
-  const ranked=Object.values(pts).sort((a,b)=>(b.gamesA-b.gamesB)-(a.gamesA-a.gamesB)||b.pg-a.pg);
+  const _ffp=(t.partidos||[]).filter(p=>p.esFase&&p.jugado);
+  const _ffsc=t.scoring||'games';
+  const ranked=Object.values(pts).sort((a,b)=>{
+    const pA=_ffsc==='games'?a.gamesA:a.pg*3,pB=_ffsc==='games'?b.gamesA:b.pg*3;
+    if(pB!==pA)return pB-pA;
+    const dA=a.gamesA-a.gamesB,dB=b.gamesA-b.gamesB;
+    if(dB!==dA)return dB-dA;
+    const h=_ffp.find(p=>(p.eq1===a.nombre&&p.eq2===b.nombre)||(p.eq1===b.nombre&&p.eq2===a.nombre));
+    if(h){const aW=(h.eq1===a.nombre&&h.ganadorA)||(h.eq2===a.nombre&&!h.ganadorA);return aW?-1:1;}
+    const k=`${a.nombre}|||${b.nombre}`,kr=`${b.nombre}|||${a.nombre}`;
+    if(t.desempates?.[k])return -1;if(t.desempates?.[kr])return 1;
+    return 0;
+  });
   const cr=t.canchasReales||(t.numCanchas>0?Array.from({length:t.numCanchas},(_,i)=>i+1):[]);
   const N=cr.length||Math.floor(ranked.length/2);
   const labels=['🥇 1° y 2° Lugar','🥉 3° y 4° Lugar','5° y 6° Lugar','7° y 8° Lugar','9° y 10° Lugar'];
@@ -699,6 +723,35 @@ async function guardarResultadoFF(tid,matchId,sheet){
   p.s1a=a;p.s1b=b;p.jugado=true;p.ganadorA=a>b;
   await saveData();sheet?.remove();renderTorneo();toast('Resultado guardado');
 }
+async function rrCaraOSello(tid,nombre1,nombre2){
+  if(!document.getElementById('rr-flip-style')){
+    const st=document.createElement('style');st.id='rr-flip-style';
+    st.textContent='@keyframes rrSpin{0%{transform:scale(1) rotateY(0)}35%{transform:scale(1.5) rotateY(540deg)}70%{transform:scale(1.2) rotateY(900deg)}100%{transform:scale(1) rotateY(1080deg)}}';
+    document.head.appendChild(st);
+  }
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML=`
+    <div style="background:var(--color-background-primary,#fff);border-radius:20px;padding:28px 24px;text-align:center;max-width:280px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.4)">
+      <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary,#888780);letter-spacing:1px;margin-bottom:12px">CARA Y SELLO</div>
+      <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:16px">${_apodoCorto(nombre1)} vs ${_apodoCorto(nombre2)}</div>
+      <div style="font-size:72px;display:inline-block;animation:rrSpin 1.3s ease-out forwards;transform-style:preserve-3d">🪙</div>
+      <div id="rr-flip-res" style="margin-top:20px;font-size:15px;font-weight:700;color:var(--color-text-primary,#1a1a18);min-height:22px;opacity:0;transition:opacity .5s"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const ganador=Math.random()<0.5?nombre1:nombre2;
+  setTimeout(()=>{const el=document.getElementById('rr-flip-res');if(el){el.textContent=`🏆 ${_apodoCorto(ganador)} avanza`;el.style.opacity='1';}},1400);
+  setTimeout(async()=>{
+    const t=_findTorneo(tid);
+    if(t){
+      if(!t.desempates)t.desempates={};
+      const perdedor=ganador===nombre1?nombre2:nombre1;
+      t.desempates[`${ganador}|||${perdedor}`]=true;
+      await saveData();
+    }
+    overlay.remove();renderTorneo();
+  },3200);
+}
 function _renderTorneoDetalle(t,canEdit){
   let h='';
 
@@ -724,10 +777,25 @@ function _renderTorneoDetalle(t,canEdit){
       if((p.s1a||0)>(p.s1b||0)){pts[p.eq1].pg++;pts[p.eq2].pp++;}
       else{pts[p.eq2].pg++;pts[p.eq1].pp++;}
     });
+    const _rrPts=r=>(t.scoring||'games')==='games'?r.gamesA:r.pg*3;
+    const _rrDif=r=>r.gamesA-r.gamesB;
+    const _rrH2h=(a,b)=>fasePartidos.find(p=>p.jugado&&((p.eq1===a.nombre&&p.eq2===b.nombre)||(p.eq1===b.nombre&&p.eq2===a.nombre)));
+    const _isTied=(a,b)=>{
+      if(!a||!b)return false;
+      if(_rrPts(a)!==_rrPts(b))return false;
+      if(_rrDif(a)!==_rrDif(b))return false;
+      if(_rrH2h(a,b))return false;
+      const k=`${a.nombre}|||${b.nombre}`,kr=`${b.nombre}|||${a.nombre}`;
+      return !t.desempates?.[k]&&!t.desempates?.[kr];
+    };
     const ranked=Object.values(pts).sort((a,b)=>{
-      const sc=t.scoring||'games';
-      if(sc==='games') return (b.gamesA-b.gamesB)-(a.gamesA-a.gamesB)||b.pg-a.pg;
-      return b.pg-a.pg||b.pj-a.pj;
+      if(_rrPts(b)!==_rrPts(a))return _rrPts(b)-_rrPts(a);
+      if(_rrDif(b)!==_rrDif(a))return _rrDif(b)-_rrDif(a);
+      const h=_rrH2h(a,b);
+      if(h){const aW=(h.eq1===a.nombre&&h.ganadorA)||(h.eq2===a.nombre&&!h.ganadorA);return aW?-1:1;}
+      const k=`${a.nombre}|||${b.nombre}`,kr=`${b.nombre}|||${a.nombre}`;
+      if(t.desempates?.[k])return -1;if(t.desempates?.[kr])return 1;
+      return 0;
     });
 
     // Tabla de standings
@@ -762,10 +830,13 @@ function _renderTorneoDetalle(t,canEdit){
       const difStr=(dif>0?'+':'')+dif;
       const difColor=dif>0?'#1D9E75':dif<0?'#D85A30':'var(--color-text-secondary,#888780)';
       const isTop2=i<2;
-      const pts=r.pg; // en modo partidos: 3 por victoria, pero aquí usamos PG directamente
+      const pts=r.pg;
+      const needsCoinFlip=canEdit&&i%2===1&&_isTied(r,ranked[i+1]);
+      const _n1=r.nombre.replace(/'/g,"\\'"),_n2=needsCoinFlip?(ranked[i+1].nombre.replace(/'/g,"\\'")):'' ;
       h+=`<tr style="border-bottom:0.5px solid var(--color-border-tertiary,#e5e4df);background:${isTop2?'rgba(201,150,12,0.05)':''}">
-        <td style="padding:7px 4px">
+        <td style="padding:7px 4px;text-align:center">
           <span style="width:18px;height:18px;border-radius:50%;background:${isTop2?'#C9960C22':'var(--color-background-secondary,#f1efe8)'};color:${isTop2?'#C9960C':'#888780'};font-size:10px;font-weight:600;display:inline-flex;align-items:center;justify-content:center">${i+1}</span>
+          ${needsCoinFlip?`<button onclick="rrCaraOSello('${t.id}','${_n1}','${_n2}')" type="button" style="display:block;margin:2px auto 0;background:none;border:none;cursor:pointer;font-size:11px;padding:0;line-height:1" title="Cara y sello para desempatar">🪙</button>`:''}
         </td>
         <td style="padding:7px 4px;font-size:12px;color:var(--color-text-primary,#1a1a18);font-weight:${isTop2?'600':'400'}">
           <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
