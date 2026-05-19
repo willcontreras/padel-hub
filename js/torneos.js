@@ -1255,6 +1255,7 @@ async function renderTorneo(){
       ${isOpen?`<div style="border-top:0.5px solid var(--color-border-tertiary,#e5e4df);padding:12px 14px 14px">
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           ${(t.formato==='grupos'&&t.grupos)||(['todos','americano','eliminacion'].includes(t.formato)&&t.partidos?.length)?`<button class="btn btn-sm btn-p" style="flex:1;font-size:11px;min-width:120px" onclick="generarImagenFixture('${t.id}')">&#x1F4E5; Fixture</button>`:''}
+          ${t.formato==='roundrobin'&&(t.partidos||[]).some(p=>p.esFase)?`<button class="btn btn-sm btn-p" style="flex:1;font-size:11px;min-width:130px" onclick="generarImagenFixtureRR('${t.id}')">&#x1F4F8; Compartir fixture</button>`:''}
           <button class="btn btn-sm" style="font-size:11px;color:var(--g,#1D9E75);border-color:rgba(29,158,117,.4)" onclick="abrirPagosTorneo('${t.id}')">&#x1F4B0; Pagos</button>
           ${puedeBorrar?`<button onclick="togglePublico('${t.id}')" style="display:flex;align-items:center;gap:7px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:5px 10px;background:var(--color-background-secondary,#f1efe8);cursor:pointer;font-family:inherit;font-size:11px;color:var(--color-text-secondary,#888780)"><span>${t.publico?'\u{1F30D}':'\u{1F512}'}</span><span style="position:relative;display:inline-block;width:32px;height:18px;background:${t.publico?'var(--g,#1D9E75)':'rgba(128,128,128,0.25)'};border-radius:9px;transition:background .2s;flex-shrink:0"><span style="position:absolute;top:2px;left:${t.publico?'14px':'2px'};width:14px;height:14px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span></span><span style="font-weight:500;color:${t.publico?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}">${t.publico?'P\u00fablico':'Privado'}</span></button>`:'' }
           ${puedeBorrar?`<button class="btn btn-sm" style="font-size:11px;color:var(--am,#BA7517);border-color:rgba(186,117,23,.4)" onclick="resetResultados('${t.id}')">&#x1F504; Resetear</button>`:''}
@@ -1917,6 +1918,121 @@ async function generarImagenFixture(tid){
     a.click();URL.revokeObjectURL(url);
   },'image/png');
 }
+// ── Canvas Fixture Image Generator — Round Robin ──
+async function generarImagenFixtureRR(tid){
+  const t=_findTorneo(tid);
+  if(!t||t.formato!=='roundrobin'){toast('No hay fixture para descargar');return;}
+  toast('Generando imagen...');
+
+  const S=2,CW=800,PAD=24;
+  const TITLE_H=88,FH=30,MH=44,FF_H=36,FF_MH=44,SGAP=12,BPAD=8;
+  const AM='#f5c800',BLUE='#4fa3f7';
+
+  const faseP=(t.partidos||[]).filter(p=>p.esFase);
+  const rondas=[...new Set(faseP.map(p=>p.ronda))].sort((a,b)=>a-b);
+  const faseFinal=t.faseFinal||[];
+
+  // Height calculation
+  let ch=PAD+TITLE_H+8;
+  rondas.forEach(r=>{ch+=SGAP+FH+4+faseP.filter(p=>p.ronda===r).length*MH+BPAD;});
+  if(faseFinal.length){ch+=SGAP+FF_H+4+faseFinal.length*FF_MH+BPAD;}
+  ch+=28;
+
+  const canvas=document.createElement('canvas');
+  canvas.width=CW*S;canvas.height=ch*S;
+  const cx=canvas.getContext('2d');cx.scale(S,S);
+
+  // Background
+  const bg=cx.createLinearGradient(0,0,0,ch);
+  bg.addColorStop(0,'#0d1b2e');bg.addColorStop(1,'#040a14');
+  cx.fillStyle=bg;cx.fillRect(0,0,CW,ch);
+  cx.strokeStyle='rgba(255,255,255,0.022)';cx.lineWidth=1;
+  for(let gx=0;gx<CW;gx+=36){cx.beginPath();cx.moveTo(gx,0);cx.lineTo(gx,ch);cx.stroke();}
+  for(let gy=0;gy<ch;gy+=36){cx.beginPath();cx.moveTo(0,gy);cx.lineTo(CW,gy);cx.stroke();}
+
+  // Top accent stripe
+  const tg=cx.createLinearGradient(0,0,CW,0);
+  tg.addColorStop(0,'#1a5ba8');tg.addColorStop(0.5,'#378ADD');tg.addColorStop(1,'#1a5ba8');
+  cx.fillStyle=tg;cx.fillRect(0,0,CW,4);
+
+  // Title
+  const nombre=(t.nombre||'Round Robin').toUpperCase();
+  let fs=28;cx.font=`bold ${fs}px Impact,Arial Black,sans-serif`;
+  while(cx.measureText(nombre).width>CW-PAD*4&&fs>16){fs--;cx.font=`bold ${fs}px Impact,Arial Black,sans-serif`;}
+  cx.fillStyle='#ffffff';cx.textAlign='center';cx.fillText(nombre,CW/2,PAD+42);
+  const sub=['Round Robin',t.fecha].filter(Boolean).join(' · ');
+  cx.font='12px Arial,sans-serif';cx.fillStyle='rgba(255,255,255,0.5)';cx.fillText(sub,CW/2,PAD+62);
+  cx.strokeStyle='rgba(55,138,221,0.28)';cx.lineWidth=1;
+  cx.beginPath();cx.moveTo(PAD,PAD+TITLE_H-6);cx.lineTo(CW-PAD,PAD+TITLE_H-6);cx.stroke();
+
+  const W=CW-PAD*2,mid=PAD+W/2;
+  let y=PAD+TITLE_H+8;
+
+  // Rondas
+  rondas.forEach(r=>{
+    y+=SGAP;
+    const rp=faseP.filter(p=>p.ronda===r);
+    _rrect(cx,PAD,y,W,FH+4+rp.length*MH+BPAD,8,'rgba(55,138,221,0.07)','rgba(55,138,221,0.22)',1);
+    _rrect(cx,PAD,y,W,FH,8,'rgba(55,138,221,0.2)',null,0,true);
+    cx.font='bold 11px Arial,sans-serif';cx.fillStyle=BLUE;cx.textAlign='center';
+    cx.fillText('FECHA '+r,mid,y+19);y+=FH+4;
+    rp.forEach(p=>{
+      const hw=W/2-32,winA=p.jugado&&p.ganadorA,winB=p.jugado&&!p.ganadorA;
+      if(p.cancha!=null){
+        cx.font='9px Arial,sans-serif';cx.fillStyle='rgba(79,163,247,0.65)';cx.textAlign='left';
+        cx.fillText('🎾 C.'+p.cancha,PAD+10,y+13);
+      }
+      const tr=p.cancha!=null?y+30:y+22;
+      cx.font='bold 11px Arial,sans-serif';cx.fillStyle=winA?'#50ff80':'#cce4ff';cx.textAlign='right';
+      cx.fillText(_trunc(cx,_apodoCorto(p.eq1),hw),mid-24,tr);
+      if(p.jugado){cx.font='bold 13px Arial,sans-serif';cx.fillStyle=AM;cx.textAlign='center';cx.fillText((p.s1a??'?')+'-'+(p.s1b??'?'),mid,tr);}
+      else{cx.font='bold 10px Arial,sans-serif';cx.fillStyle='rgba(245,200,0,0.6)';cx.textAlign='center';cx.fillText('VS',mid,tr);}
+      cx.font='bold 11px Arial,sans-serif';cx.fillStyle=winB?'#50ff80':'#cce4ff';cx.textAlign='left';
+      cx.fillText(_trunc(cx,_apodoCorto(p.eq2),hw),mid+24,tr);
+      cx.strokeStyle='rgba(255,255,255,0.05)';cx.lineWidth=0.5;
+      cx.beginPath();cx.moveTo(PAD+10,y+MH-1);cx.lineTo(CW-PAD-10,y+MH-1);cx.stroke();
+      y+=MH;
+    });
+    y+=BPAD;
+  });
+
+  // Fase final
+  if(faseFinal.length){
+    y+=SGAP;
+    _rrect(cx,PAD,y,W,FF_H+4+faseFinal.length*FF_MH+BPAD,8,'rgba(186,117,23,0.08)','rgba(186,117,23,0.35)',1);
+    _rrect(cx,PAD,y,W,FF_H,8,'rgba(186,117,23,0.2)',null,0,true);
+    cx.font='bold 12px Arial,sans-serif';cx.fillStyle=AM;cx.textAlign='center';
+    cx.fillText('🏆 FASE FINAL',mid,y+22);y+=FF_H+4;
+    faseFinal.forEach(m=>{
+      const hw=W/2-32,winA=m.jugado&&m.ganadorA,winB=m.jugado&&!m.ganadorA;
+      cx.font='bold 9px Arial,sans-serif';cx.fillStyle='rgba(245,200,0,0.55)';cx.textAlign='left';
+      cx.fillText(m.label||'',PAD+10,y+13);
+      if(m.cancha!=null){cx.font='9px Arial,sans-serif';cx.fillStyle='rgba(79,163,247,0.65)';cx.textAlign='right';cx.fillText('🎾 C.'+m.cancha,CW-PAD-10,y+13);}
+      const tr=y+30;
+      cx.font='bold 11px Arial,sans-serif';cx.fillStyle=winA?'#50ff80':'#ffe8a0';cx.textAlign='right';
+      cx.fillText(_trunc(cx,_apodoCorto(m.eq1||'—'),hw),mid-24,tr);
+      if(m.jugado){cx.font='bold 13px Arial,sans-serif';cx.fillStyle=AM;cx.textAlign='center';cx.fillText((m.s1a??'?')+'-'+(m.s1b??'?'),mid,tr);}
+      else{cx.font='bold 10px Arial,sans-serif';cx.fillStyle='rgba(245,200,0,0.6)';cx.textAlign='center';cx.fillText('VS',mid,tr);}
+      cx.font='bold 11px Arial,sans-serif';cx.fillStyle=winB?'#50ff80':'#ffe8a0';cx.textAlign='left';
+      cx.fillText(_trunc(cx,_apodoCorto(m.eq2||'—'),hw),mid+24,tr);
+      cx.strokeStyle='rgba(255,255,255,0.05)';cx.lineWidth=0.5;
+      cx.beginPath();cx.moveTo(PAD+10,y+FF_MH-1);cx.lineTo(CW-PAD-10,y+FF_MH-1);cx.stroke();
+      y+=FF_MH;
+    });
+    y+=BPAD;
+  }
+
+  // Footer
+  cx.font='10px Arial,sans-serif';cx.fillStyle='rgba(255,255,255,0.18)';cx.textAlign='center';
+  cx.fillText('Pádel Hub',CW/2,ch-10);
+
+  canvas.toBlob(blob=>{
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='fixture-'+(t.nombre||'torneo').toLowerCase().replace(/\s+/g,'-')+'.png';
+    a.click();URL.revokeObjectURL(url);
+  },'image/png');
+}
+
 // Carga una imagen desde src (data URL o URL normal)
 function _loadImgSrc(src){return new Promise(res=>{const img=new Image();img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;});}
 function _rrect(cx,x,y,w,h,r,fill,stroke,sw,topOnly){
