@@ -311,28 +311,26 @@ async function crearTorneo(){
     });
   }
   // Asignar canchas por rondas: dentro de cada ronda ninguna pareja repite
-  if(numCanchas>0){
-    const _asignar=(lista)=>{
-      let rondaN=1;const hecho=new Set();
-      while(hecho.size<lista.length){
-        const ronda=[];const vistos=new Set();
-        lista.forEach((p,i)=>{
-          if(hecho.has(i))return;
-          const sep1=p.eq1.includes(' / ')?' / ':' - ';
-          const sep2=p.eq2.includes(' / ')?' / ':' - ';
-          const partes=[...p.eq1.split(sep1),...p.eq2.split(sep2)].map(x=>x.trim()).filter(Boolean);
-          if(partes.every(x=>!vistos.has(x))){ronda.push(i);partes.forEach(x=>vistos.add(x));}
-        });
-        if(!ronda.length)break;
-        ronda.forEach((i,ci)=>{lista[i].ronda=rondaN;lista[i].cancha=(ci%numCanchas)+1;hecho.add(i);});
-        rondaN++;
-      }
-    };
-    if(selFmtVal==='grupos'){
-      grupos.forEach(gr=>_asignar(partidos.filter(p=>p.grupo===gr.letra)));
-    } else {
-      _asignar(partidos);
+  const _asignar=(lista)=>{
+    let rondaN=1;const hecho=new Set();
+    while(hecho.size<lista.length){
+      const ronda=[];const vistos=new Set();
+      lista.forEach((p,i)=>{
+        if(hecho.has(i))return;
+        const sep1=p.eq1.includes(' / ')?' / ':' - ';
+        const sep2=p.eq2.includes(' / ')?' / ':' - ';
+        const partes=[...p.eq1.split(sep1),...p.eq2.split(sep2)].map(x=>x.trim()).filter(Boolean);
+        if(partes.every(x=>!vistos.has(x))){ronda.push(i);partes.forEach(x=>vistos.add(x));}
+      });
+      if(!ronda.length)break;
+      ronda.forEach((i,ci)=>{lista[i].ronda=rondaN;if(numCanchas>0)lista[i].cancha=(ci%numCanchas)+1;hecho.add(i);});
+      rondaN++;
     }
+  };
+  if(selFmtVal==='grupos'){
+    grupos.forEach(gr=>_asignar(partidos.filter(p=>p.grupo===gr.letra)));
+  } else {
+    _asignar(partidos);
   }
   // Auto-vincular al creador: buscar su apodo en la lista de jugadores
   const creadorApodo=(userData?.perfil?.apodo||CURRENT_USER?.displayName||'').toLowerCase().trim();
