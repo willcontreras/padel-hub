@@ -641,8 +641,9 @@ function _actualizarFinalesRR(t){
     if(dB!==dA)return dB-dA;
     const h=_fp.find(p=>(p.eq1===a.nombre&&p.eq2===b.nombre)||(p.eq1===b.nombre&&p.eq2===a.nombre));
     if(h){const aW=(h.eq1===a.nombre&&h.ganadorA)||(h.eq2===a.nombre&&!h.ganadorA);return aW?-1:1;}
-    const k=`${a.nombre}|||${b.nombre}`,kr=`${b.nombre}|||${a.nombre}`;
-    if(t.desempates?.[k])return -1;if(t.desempates?.[kr])return 1;
+    const k=`${a.nombre}_${b.nombre}`,kr=`${b.nombre}_${a.nombre}`;
+    if(t.desempates?.[k])return t.desempates[k]===a.nombre?-1:1;
+    if(t.desempates?.[kr])return t.desempates[kr]===a.nombre?-1:1;
     return 0;
   });
 
@@ -674,8 +675,9 @@ async function generarFaseFinalRR(tid){
     if(dB!==dA)return dB-dA;
     const h=_ffp.find(p=>(p.eq1===a.nombre&&p.eq2===b.nombre)||(p.eq1===b.nombre&&p.eq2===a.nombre));
     if(h){const aW=(h.eq1===a.nombre&&h.ganadorA)||(h.eq2===a.nombre&&!h.ganadorA);return aW?-1:1;}
-    const k=`${a.nombre}|||${b.nombre}`,kr=`${b.nombre}|||${a.nombre}`;
-    if(t.desempates?.[k])return -1;if(t.desempates?.[kr])return 1;
+    const k=`${a.nombre}_${b.nombre}`,kr=`${b.nombre}_${a.nombre}`;
+    if(t.desempates?.[k])return t.desempates[k]===a.nombre?-1:1;
+    if(t.desempates?.[kr])return t.desempates[kr]===a.nombre?-1:1;
     return 0;
   });
   const cr=t.canchasReales||(t.numCanchas>0?Array.from({length:t.numCanchas},(_,i)=>i+1):[]);
@@ -724,33 +726,70 @@ async function guardarResultadoFF(tid,matchId,sheet){
   await saveData();sheet?.remove();renderTorneo();toast('Resultado guardado');
 }
 async function rrCaraOSello(tid,nombre1,nombre2){
-  if(!document.getElementById('rr-flip-style')){
-    const st=document.createElement('style');st.id='rr-flip-style';
-    st.textContent='@keyframes rrSpin{0%{transform:scale(1) rotateY(0)}35%{transform:scale(1.5) rotateY(540deg)}70%{transform:scale(1.2) rotateY(900deg)}100%{transform:scale(1) rotateY(1080deg)}}';
-    document.head.appendChild(st);
-  }
   const overlay=document.createElement('div');
   overlay.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML=`
-    <div style="background:var(--color-background-primary,#fff);border-radius:20px;padding:28px 24px;text-align:center;max-width:280px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.4)">
-      <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary,#888780);letter-spacing:1px;margin-bottom:12px">CARA Y SELLO</div>
-      <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:16px">${_apodoCorto(nombre1)} vs ${_apodoCorto(nombre2)}</div>
-      <div style="font-size:72px;display:inline-block;animation:rrSpin 1.3s ease-out forwards;transform-style:preserve-3d">🪙</div>
-      <div id="rr-flip-res" style="margin-top:20px;font-size:15px;font-weight:700;color:var(--color-text-primary,#1a1a18);min-height:22px;opacity:0;transition:opacity .5s"></div>
-    </div>`;
+  const card=document.createElement('div');
+  card.style.cssText='background:var(--color-background-primary,#fff);border-radius:20px;padding:28px 24px;text-align:center;max-width:300px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.4)';
+  overlay.appendChild(card);
   document.body.appendChild(overlay);
-  const ganador=Math.random()<0.5?nombre1:nombre2;
-  setTimeout(()=>{const el=document.getElementById('rr-flip-res');if(el){el.textContent=`🏆 ${_apodoCorto(ganador)} avanza`;el.style.opacity='1';}},1400);
-  setTimeout(async()=>{
+
+  const _guardar=async(ganador)=>{
     const t=_findTorneo(tid);
     if(t){
       if(!t.desempates)t.desempates={};
-      const perdedor=ganador===nombre1?nombre2:nombre1;
-      t.desempates[`${ganador}|||${perdedor}`]=true;
+      t.desempates[`${nombre1}_${nombre2}`]=ganador;
       await saveData();
     }
-    overlay.remove();renderTorneo();
-  },3200);
+    overlay.remove();
+    renderTorneo();
+  };
+
+  const _header=`<div style="font-size:11px;font-weight:600;color:var(--color-text-secondary,#888780);letter-spacing:1px;margin-bottom:8px">CARA Y SELLO</div>`;
+  const _vs=`<div style="font-size:13px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:20px">${_apodoCorto(nombre1)} vs ${_apodoCorto(nombre2)}</div>`;
+
+  const _showSelection=()=>{
+    card.innerHTML=`${_header}${_vs}
+      <button id="rr-cs-virtual" style="display:block;width:100%;margin-bottom:10px;padding:12px 16px;border-radius:12px;border:none;background:var(--color-brand-primary,#378ADD);color:#fff;font-size:14px;font-weight:600;cursor:pointer">🎲 Lanzar virtualmente</button>
+      <button id="rr-cs-manual" style="display:block;width:100%;padding:12px 16px;border-radius:12px;border:1.5px solid var(--color-border,#e0e0e0);background:transparent;color:var(--color-text-primary,#1a1a18);font-size:14px;font-weight:600;cursor:pointer">✍️ Ingresar resultado</button>
+      <button id="rr-cs-cancel" style="display:block;width:100%;margin-top:10px;padding:8px;border:none;background:none;color:var(--color-text-secondary,#888780);font-size:13px;cursor:pointer">Cancelar</button>`;
+    card.querySelector('#rr-cs-virtual').onclick=_doVirtual;
+    card.querySelector('#rr-cs-manual').onclick=_doManual;
+    card.querySelector('#rr-cs-cancel').onclick=()=>overlay.remove();
+  };
+
+  const _doVirtual=()=>{
+    if(!document.getElementById('rr-flip-style')){
+      const st=document.createElement('style');st.id='rr-flip-style';
+      st.textContent='@keyframes rrSpin{0%{transform:scale(1) rotateY(0)}35%{transform:scale(1.5) rotateY(540deg)}70%{transform:scale(1.2) rotateY(900deg)}100%{transform:scale(1) rotateY(1080deg)}}';
+      document.head.appendChild(st);
+    }
+    const ganador=Math.random()<0.5?nombre1:nombre2;
+    const lado=ganador===nombre1?'CARA':'SELLO';
+    card.innerHTML=`${_header}
+      <div style="font-size:72px;display:inline-block;animation:rrSpin 1.3s ease-out forwards;transform-style:preserve-3d">🪙</div>
+      <div id="rr-flip-res" style="margin-top:20px;font-size:15px;font-weight:700;color:var(--color-text-primary,#1a1a18);min-height:48px;opacity:0;transition:opacity .5s"></div>`;
+    setTimeout(()=>{
+      const el=card.querySelector('#rr-flip-res');
+      if(el){
+        el.innerHTML=`<div style="font-size:11px;letter-spacing:1.5px;color:var(--color-text-secondary,#888780);margin-bottom:4px">${lado}</div><div>🏆 ${_apodoCorto(ganador)} avanza</div>`;
+        el.style.opacity='1';
+      }
+    },1400);
+    setTimeout(()=>_guardar(ganador),3200);
+  };
+
+  const _doManual=()=>{
+    card.innerHTML=`${_header}
+      <div style="font-size:13px;color:var(--color-text-secondary,#888780);margin-bottom:16px">¿Quién ganó el lanzamiento real?</div>
+      <button id="rr-m-1" style="display:block;width:100%;margin-bottom:10px;padding:14px 16px;border-radius:12px;border:none;background:var(--color-brand-primary,#378ADD);color:#fff;font-size:14px;font-weight:600;cursor:pointer">${_apodoCorto(nombre1)}</button>
+      <button id="rr-m-2" style="display:block;width:100%;padding:14px 16px;border-radius:12px;border:none;background:var(--color-brand-primary,#378ADD);color:#fff;font-size:14px;font-weight:600;cursor:pointer">${_apodoCorto(nombre2)}</button>
+      <button id="rr-m-back" style="display:block;width:100%;margin-top:10px;padding:8px;border:none;background:none;color:var(--color-text-secondary,#888780);font-size:13px;cursor:pointer">← Volver</button>`;
+    card.querySelector('#rr-m-1').onclick=()=>_guardar(nombre1);
+    card.querySelector('#rr-m-2').onclick=()=>_guardar(nombre2);
+    card.querySelector('#rr-m-back').onclick=_showSelection;
+  };
+
+  _showSelection();
 }
 function _renderTorneoDetalle(t,canEdit){
   let h='';
@@ -785,7 +824,7 @@ function _renderTorneoDetalle(t,canEdit){
       if(_rrPts(a)!==_rrPts(b))return false;
       if(_rrDif(a)!==_rrDif(b))return false;
       if(_rrH2h(a,b))return false;
-      const k=`${a.nombre}|||${b.nombre}`,kr=`${b.nombre}|||${a.nombre}`;
+      const k=`${a.nombre}_${b.nombre}`,kr=`${b.nombre}_${a.nombre}`;
       return !t.desempates?.[k]&&!t.desempates?.[kr];
     };
     const ranked=Object.values(pts).sort((a,b)=>{
@@ -793,8 +832,9 @@ function _renderTorneoDetalle(t,canEdit){
       if(_rrDif(b)!==_rrDif(a))return _rrDif(b)-_rrDif(a);
       const h=_rrH2h(a,b);
       if(h){const aW=(h.eq1===a.nombre&&h.ganadorA)||(h.eq2===a.nombre&&!h.ganadorA);return aW?-1:1;}
-      const k=`${a.nombre}|||${b.nombre}`,kr=`${b.nombre}|||${a.nombre}`;
-      if(t.desempates?.[k])return -1;if(t.desempates?.[kr])return 1;
+      const k=`${a.nombre}_${b.nombre}`,kr=`${b.nombre}_${a.nombre}`;
+      if(t.desempates?.[k])return t.desempates[k]===a.nombre?-1:1;
+      if(t.desempates?.[kr])return t.desempates[kr]===a.nombre?-1:1;
       return 0;
     });
 
