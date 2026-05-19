@@ -112,7 +112,7 @@ function rrCalcular(){
   if(!preview) return;
   const tiempo=parseInt(document.getElementById('rr-tiempo')?.value)||120;
   const duracion=parseInt(document.getElementById('rr-duracion')?.value)||30;
-  const canchas=parseInt(document.getElementById('nt-canchas')?.value)||0;
+  const canchas=ntParseCanchas(document.getElementById('nt-canchas')?.value||'').length;
   const parejas=document.getElementById('nt-parejas-lista')?.querySelectorAll('[data-idx]').length||0;
 
   // Validar duración
@@ -164,6 +164,12 @@ function rrCalcular(){
 }
 
 // ── Pair input management ──
+function ntParseCanchas(val){
+  const arr=[...new Set((val||'').split(',').map(s=>parseInt(s.trim())).filter(n=>!isNaN(n)&&n>0))].sort((a,b)=>a-b);
+  const el=document.getElementById('nt-canchas-preview');
+  if(el)el.textContent=arr.length?`${arr.length} cancha${arr.length!==1?'s':''}: ${arr.join(' · ')}`:'';
+  return arr;
+}
 function ntAgregarPareja(){
   const lista=document.getElementById('nt-parejas-lista');if(!lista)return;
   const idx=lista.children.length;
@@ -236,8 +242,8 @@ function ntClonarJugadores(){
 function ntClonarDesde(torneo){
   const jugadores=torneo.jugadores||[];
   if(!jugadores.length){toast('El torneo no tiene parejas');return;}
-  const numCanchas=parseInt(document.getElementById('nt-canchas')?.value)||0;
-  const max=numCanchas>0?numCanchas*2:jugadores.length;
+  const _cr=ntParseCanchas(document.getElementById('nt-canchas')?.value||'');
+  const max=_cr.length>0?_cr.length*2:jugadores.length;
   const lista=jugadores.slice(0,max);
   const contenedor=document.getElementById('nt-parejas-lista');
   if(!contenedor)return;
@@ -265,7 +271,8 @@ async function crearTorneo(){
   const fecha=document.getElementById('nt-fecha').value;
   const jugadores=ntGetParejas();
   if(jugadores.length<2){toast('Se necesitan al menos 2 parejas');return;}
-  const numCanchas=parseInt(document.getElementById('nt-canchas')?.value)||0;
+  const canchasReales=ntParseCanchas(document.getElementById('nt-canchas')?.value||'');
+  const numCanchas=canchasReales.length;
   let partidos=[], grupos=[];
   const creadorUid=CURRENT_USER?.uid||null;
   const equipoUids={};
@@ -342,7 +349,7 @@ async function crearTorneo(){
       creadoPor:creadorUid,adminsTorneo:[],
       jugadores,partidos,grupos:[],equipoUids,
       rrConfig:{tiempo,duracion,rondasFase},
-      ...(numCanchas>0?{numCanchas}:{})
+      ...(canchasReales.length>0?{numCanchas,canchasReales}:{})
     });
     await saveData();closeModal('m-torneo');curTorneoIdx=-1;renderTorneo();toast('Torneo Round Robin creado');
     return;
@@ -375,7 +382,7 @@ async function crearTorneo(){
         if(partes.every(x=>!vistos.has(x))){ronda.push(i);partes.forEach(x=>vistos.add(x));}
       });
       if(!ronda.length)break;
-      ronda.forEach((i,ci)=>{lista[i].ronda=rondaN;if(numCanchas>0)lista[i].cancha=(ci%numCanchas)+1;hecho.add(i);});
+      ronda.forEach((i,ci)=>{lista[i].ronda=rondaN;if(canchasReales.length>0)lista[i].cancha=canchasReales[ci%canchasReales.length];hecho.add(i);});
       rondaN++;
     }
   };
@@ -404,7 +411,7 @@ async function crearTorneo(){
     });
   }
   if(!userData.torneos)userData.torneos=[];
-  userData.torneos.unshift({id:'t'+Date.now(),nombre,fecha,formato:selFmtVal,scoring:selScoringVal||'games',publico:selVisibilidadVal==='publico',creadoPor:creadorUid,adminsTorneo:[],jugadores,partidos,grupos,equipoUids,...(numCanchas>0?{numCanchas}:{})});
+  userData.torneos.unshift({id:'t'+Date.now(),nombre,fecha,formato:selFmtVal,scoring:selScoringVal||'games',publico:selVisibilidadVal==='publico',creadoPor:creadorUid,adminsTorneo:[],jugadores,partidos,grupos,equipoUids,...(canchasReales.length>0?{numCanchas,canchasReales}:{})});
   await saveData();closeModal('m-torneo');curTorneoIdx=-1;renderTorneo();toast('Torneo creado');
 }
 function _pm(label,teamA,teamB,matchId,tid){
@@ -416,8 +423,10 @@ function _pm(label,teamA,teamB,matchId,tid){
   const colorA=jugado?(winA?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'):'var(--color-text-primary,#1a1a18)';
   const colorB=jugado?(winB?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'):'var(--color-text-primary,#1a1a18)';
   const clickable=matchId&&tid&&!jugado&&teamA!=='\u2014'&&teamB!=='\u2014';
+  const canchaStr=m?.cancha?`<div style="font-size:9px;font-weight:600;color:var(--bl,#378ADD);letter-spacing:0.5px;text-align:center;margin-bottom:3px">\ud83c\udfbe Cancha ${m.cancha}</div>`:'';
   return `<div style="margin-bottom:7px">
     <div style="font-size:12px;font-weight:600;color:var(--am,#BA7517);letter-spacing:0.5px;margin-bottom:4px">${label}</div>
+    ${canchaStr}
     <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:4px;background:rgba(128,128,128,0.08);border-radius:7px;padding:8px 10px;cursor:${clickable?'pointer':'default'};${clickable?'border:1px dashed rgba(186,117,23,.35)':''}"
       onclick="${clickable?`abrirResultadoPlayoff('${tid||''}','${matchId||''}')`:''}"
       title="${clickable?'Cargar resultado':''}">
@@ -476,6 +485,11 @@ function _buildPlayoffs(t){
 function _renderPlayoffs(t){
   _buildPlayoffs(t);
   const numG=(t.grupos||[]).length||2;
+  const _cr=t.canchasReales||(t.numCanchas>0?Array.from({length:t.numCanchas},(_,i)=>i+1):[]);
+  if(_cr.length>0){
+    const _ids=numG>=4?['sf1','sf2','sf3','sf4','pf_1','pf_2','pf_3','pf_4']:['pf_1','pf_2','pf_3','pf_4'];
+    _ids.forEach((id,ci)=>{const m=t.playoffs?.find(x=>x.id===id);if(m)m.cancha=_cr[ci%_cr.length];});
+  }
   let h=`<div style="border:0.5px solid rgba(186,117,23,.25);border-radius:10px;padding:12px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:var(--am,#BA7517);letter-spacing:1px;text-align:center;margin-bottom:12px">\ud83c\udfc6 LLAVES / FINALES</div>`;
   if(numG>=4){
     h+=`<div style="font-size:10px;font-weight:600;color:var(--color-text-secondary,#888780);margin-bottom:8px;letter-spacing:1px">SEMIFINALES</div>`;
