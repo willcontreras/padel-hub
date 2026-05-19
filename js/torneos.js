@@ -805,7 +805,7 @@ function _renderTorneoDetalle(t,canEdit){
 
     // Calcular standings de fase
     const pts={};
-    t.jugadores.forEach(j=>{pts[j]={nombre:j,pg:0,pp:0,pj:0,gamesA:0,gamesB:0};});
+    (t.jugadores||[]).forEach(j=>{pts[j]={nombre:j,pg:0,pp:0,pj:0,gamesA:0,gamesB:0};});
     fasePartidos.filter(p=>p.jugado).forEach(p=>{
       const sc=t.scoring||'games';
       if(!pts[p.eq1])pts[p.eq1]={nombre:p.eq1,pg:0,pp:0,pj:0,gamesA:0,gamesB:0};
@@ -907,6 +907,13 @@ function _renderTorneoDetalle(t,canEdit){
       </div>`;
       rPartidos.forEach(p=>{ h+=_renderPartidoRR(p,t,canEdit); });
       h+=`</div>`;
+    }
+
+    // Botón compartir fixture (discreto, link-style)
+    if(fasePartidos.length){
+      h+=`<div style="text-align:right;margin-bottom:8px">
+        <button onclick="generarImagenFixtureRR('${t.id}')" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--color-text-secondary,#888780);padding:2px 0;font-family:inherit;text-decoration:underline;text-underline-offset:3px">📸 Compartir fixture</button>
+      </div>`;
     }
 
     // Botón generar fase final (nuevo sistema v1.49)
@@ -1255,7 +1262,6 @@ async function renderTorneo(){
       ${isOpen?`<div style="border-top:0.5px solid var(--color-border-tertiary,#e5e4df);padding:12px 14px 14px">
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           ${(t.formato==='grupos'&&t.grupos)||(['todos','americano','eliminacion'].includes(t.formato)&&t.partidos?.length)?`<button class="btn btn-sm btn-p" style="flex:1;font-size:11px;min-width:120px" onclick="generarImagenFixture('${t.id}')">&#x1F4E5; Fixture</button>`:''}
-          ${t.formato==='roundrobin'&&(t.partidos||[]).some(p=>p.esFase)?`<button class="btn btn-sm btn-p" style="flex:1;font-size:11px;min-width:130px" onclick="generarImagenFixtureRR('${t.id}')">&#x1F4F8; Compartir fixture</button>`:''}
           <button class="btn btn-sm" style="font-size:11px;color:var(--g,#1D9E75);border-color:rgba(29,158,117,.4)" onclick="abrirPagosTorneo('${t.id}')">&#x1F4B0; Pagos</button>
           ${puedeBorrar?`<button onclick="togglePublico('${t.id}')" style="display:flex;align-items:center;gap:7px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:5px 10px;background:var(--color-background-secondary,#f1efe8);cursor:pointer;font-family:inherit;font-size:11px;color:var(--color-text-secondary,#888780)"><span>${t.publico?'\u{1F30D}':'\u{1F512}'}</span><span style="position:relative;display:inline-block;width:32px;height:18px;background:${t.publico?'var(--g,#1D9E75)':'rgba(128,128,128,0.25)'};border-radius:9px;transition:background .2s;flex-shrink:0"><span style="position:absolute;top:2px;left:${t.publico?'14px':'2px'};width:14px;height:14px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span></span><span style="font-weight:500;color:${t.publico?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}">${t.publico?'P\u00fablico':'Privado'}</span></button>`:'' }
           ${puedeBorrar?`<button class="btn btn-sm" style="font-size:11px;color:var(--am,#BA7517);border-color:rgba(186,117,23,.4)" onclick="resetResultados('${t.id}')">&#x1F504; Resetear</button>`:''}
