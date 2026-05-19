@@ -983,6 +983,7 @@ async function renderTorneo(){
           </div>
         </div>
         ${total?`<div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:34px"><div style="font-size:11px;font-weight:700;color:${pct===100?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}">${pct}%</div><div style="width:34px;height:4px;background:var(--color-border-tertiary,#e5e4df);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct===100?'var(--g,#1D9E75)':'var(--bl,#378ADD)'};border-radius:2px"></div></div></div>`:''}
+        ${puedeBorrar?`<button type="button" onclick="event.stopPropagation();editarTorneo('${t.id}')" style="background:none;border:none;padding:4px 6px;cursor:pointer;color:var(--color-text-secondary,#888780);font-size:13px;flex-shrink:0;line-height:1" title="Editar torneo">\u270f\ufe0f</button>`:''}
         <div style="font-size:13px;color:var(--color-text-secondary,#888780);transform:rotate(${isOpen?180:0}deg)">\u25be</div>
       </div>
       ${total?`<div style="height:2px;background:var(--color-border-tertiary,#e5e4df)"><div style="height:100%;width:${pct}%;background:${pct===100?'var(--g,#1D9E75)':'var(--bl,#378ADD)'}"></div></div>`:''}
@@ -999,6 +1000,48 @@ async function renderTorneo(){
     </div>`;
   });
   el.innerHTML=html;
+}
+
+// ── Editar nombre/fecha del torneo ──
+function editarTorneo(tid){
+  const t=(userData.torneos||[]).find(x=>x.id===tid);
+  if(!t)return;
+  document.getElementById('m-edit-torneo')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='m-edit-torneo';
+  overlay.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  overlay.innerHTML=`
+    <div style="background:var(--color-background-primary,#fff);border-radius:16px;padding:20px;width:100%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.2)" onclick="event.stopPropagation()">
+      <div style="font-size:15px;font-weight:700;color:var(--color-text-primary,#1a1a18);margin-bottom:16px">Editar torneo</div>
+      <div style="margin-bottom:12px">
+        <label class="lbl">Nombre</label>
+        <input id="et-nombre" type="text" value="${(t.nombre||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a18)"/>
+      </div>
+      <div style="margin-bottom:16px">
+        <label class="lbl">Fecha</label>
+        <input id="et-fecha" type="date" value="${t.fecha||''}" style="width:100%;box-sizing:border-box;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a18)"/>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-p" style="flex:1" onclick="guardarEditTorneo('${tid}')">Guardar</button>
+        <button class="btn" onclick="document.getElementById('m-edit-torneo')?.remove()">Cancelar</button>
+      </div>
+    </div>`;
+  overlay.onclick=()=>overlay.remove();
+  document.body.appendChild(overlay);
+  const inp=document.getElementById('et-nombre');inp?.focus();inp?.select();
+}
+async function guardarEditTorneo(tid){
+  const t=(userData.torneos||[]).find(x=>x.id===tid);
+  if(!t)return;
+  const nombre=(document.getElementById('et-nombre')?.value||'').trim();
+  const fecha=document.getElementById('et-fecha')?.value||'';
+  if(!nombre){toast('El nombre no puede estar vacío');return;}
+  t.nombre=nombre;
+  if(fecha)t.fecha=fecha; else delete t.fecha;
+  await saveData();
+  document.getElementById('m-edit-torneo')?.remove();
+  renderTorneo();
+  toast('Torneo actualizado');
 }
 
 // ── Pagos del torneo ──
