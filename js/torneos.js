@@ -369,9 +369,9 @@ async function crearTorneo(){
       }));
     });
   }
-  // Asignar canchas por rondas: dentro de cada ronda ninguna pareja repite
-  const _asignar=(lista)=>{
-    let rondaN=1;const hecho=new Set();
+  // Calcula las rondas de una lista sin asignar ronda/cancha todavía
+  const _rondasGrupo=(lista)=>{
+    const rondas=[];const hecho=new Set();
     while(hecho.size<lista.length){
       const ronda=[];const vistos=new Set();
       lista.forEach((p,i)=>{
@@ -379,16 +379,43 @@ async function crearTorneo(){
         const sep1=p.eq1.includes(' / ')?' / ':' - ';
         const sep2=p.eq2.includes(' / ')?' / ':' - ';
         const partes=[...p.eq1.split(sep1),...p.eq2.split(sep2)].map(x=>x.trim()).filter(Boolean);
-        if(partes.every(x=>!vistos.has(x))){ronda.push(i);partes.forEach(x=>vistos.add(x));}
+        if(partes.every(x=>!vistos.has(x))){ronda.push({p,i});partes.forEach(x=>vistos.add(x));}
       });
       if(!ronda.length)break;
-      ronda.forEach((i,ci)=>{lista[i].ronda=rondaN;if(canchasReales.length>0)lista[i].cancha=canchasReales[ci%canchasReales.length];hecho.add(i);});
-      rondaN++;
+      ronda.forEach(({i})=>hecho.add(i));
+      rondas.push(ronda.map(({p})=>p));
     }
+    return rondas;
   };
   if(selFmtVal==='grupos'){
-    grupos.forEach(gr=>_asignar(partidos.filter(p=>p.grupo===gr.letra)));
+    // Merge de rondas entre grupos: cada fecha global junta partidos de todos los grupos
+    // y les asigna canchas en orden, coordinando el uso de todas las canchas disponibles
+    const rondasPorGrupo=grupos.map(gr=>_rondasGrupo(partidos.filter(p=>p.grupo===gr.letra)));
+    const maxRondas=Math.max(...rondasPorGrupo.map(r=>r.length));
+    for(let r=0;r<maxRondas;r++){
+      const fechaPartidos=rondasPorGrupo.flatMap(rondas=>rondas[r]||[]);
+      fechaPartidos.forEach((p,ci)=>{
+        p.ronda=r+1;
+        if(canchasReales.length>0)p.cancha=canchasReales[ci%canchasReales.length];
+      });
+    }
   } else {
+    const _asignar=(lista)=>{
+      let rondaN=1;const hecho=new Set();
+      while(hecho.size<lista.length){
+        const ronda=[];const vistos=new Set();
+        lista.forEach((p,i)=>{
+          if(hecho.has(i))return;
+          const sep1=p.eq1.includes(' / ')?' / ':' - ';
+          const sep2=p.eq2.includes(' / ')?' / ':' - ';
+          const partes=[...p.eq1.split(sep1),...p.eq2.split(sep2)].map(x=>x.trim()).filter(Boolean);
+          if(partes.every(x=>!vistos.has(x))){ronda.push(i);partes.forEach(x=>vistos.add(x));}
+        });
+        if(!ronda.length)break;
+        ronda.forEach((i,ci)=>{lista[i].ronda=rondaN;if(canchasReales.length>0)lista[i].cancha=canchasReales[ci%canchasReales.length];hecho.add(i);});
+        rondaN++;
+      }
+    };
     _asignar(partidos);
   }
   // Auto-vincular al creador: buscar su apodo en la lista de jugadores
