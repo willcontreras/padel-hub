@@ -269,6 +269,7 @@ function selVisibilidad(el){selVisibilidadVal=el.dataset.vis;['vis-privado','vis
 async function crearTorneo(){
   const nombre=document.getElementById('nt-nombre').value||'Nuevo torneo';
   const fecha=document.getElementById('nt-fecha').value;
+  const horario=(document.getElementById('nt-horario')?.value||'').trim()||null;
   const jugadores=ntGetParejas();
   if(jugadores.length<2){toast('Se necesitan al menos 2 parejas');return;}
   const canchasReales=ntParseCanchas(document.getElementById('nt-canchas')?.value||'');
@@ -342,7 +343,7 @@ async function crearTorneo(){
 
     // Guardar metadata RR en el torneo
     userData.torneos?.unshift({
-      id:'t'+Date.now(),nombre,fecha,
+      id:'t'+Date.now(),nombre,fecha,...(horario?{horario}:{}),
       formato:'roundrobin',
       scoring:selScoringVal||'games',
       publico:selVisibilidadVal==='publico',
@@ -438,7 +439,7 @@ async function crearTorneo(){
     });
   }
   if(!userData.torneos)userData.torneos=[];
-  userData.torneos.unshift({id:'t'+Date.now(),nombre,fecha,formato:selFmtVal,scoring:selScoringVal||'games',publico:selVisibilidadVal==='publico',creadoPor:creadorUid,adminsTorneo:[],jugadores,partidos,grupos,equipoUids,...(canchasReales.length>0?{numCanchas,canchasReales}:{})});
+  userData.torneos.unshift({id:'t'+Date.now(),nombre,fecha,...(horario?{horario}:{}),formato:selFmtVal,scoring:selScoringVal||'games',publico:selVisibilidadVal==='publico',creadoPor:creadorUid,adminsTorneo:[],jugadores,partidos,grupos,equipoUids,...(canchasReales.length>0?{numCanchas,canchasReales}:{})});
   await saveData();closeModal('m-torneo');curTorneoIdx=-1;renderTorneo();toast('Torneo creado');
 }
 function _pm(label,teamA,teamB,matchId,tid){
@@ -1293,6 +1294,10 @@ function editarTorneo(tid){
         <label class="lbl">Fecha</label>
         <input id="et-fecha" type="date" value="${t.fecha||''}" style="width:100%;box-sizing:border-box;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a18)"/>
       </div>
+      <div style="margin-bottom:16px">
+        <label class="lbl">Horario <span style="font-weight:400;opacity:.6">(opcional)</span></label>
+        <input id="et-horario" type="text" value="${t.horario||''}" placeholder="ej: 19:00 - 21:00" style="width:100%;box-sizing:border-box;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a18)"/>
+      </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-p" style="flex:1" onclick="guardarEditTorneo('${tid}')">Guardar</button>
         <button class="btn" onclick="document.getElementById('m-edit-torneo')?.remove()">Cancelar</button>
@@ -1307,9 +1312,11 @@ async function guardarEditTorneo(tid){
   if(!t)return;
   const nombre=(document.getElementById('et-nombre')?.value||'').trim();
   const fecha=document.getElementById('et-fecha')?.value||'';
+  const horario=(document.getElementById('et-horario')?.value||'').trim();
   if(!nombre){toast('El nombre no puede estar vacío');return;}
   t.nombre=nombre;
   if(fecha)t.fecha=fecha; else delete t.fecha;
+  if(horario)t.horario=horario; else delete t.horario;
   await saveData();
   document.getElementById('m-edit-torneo')?.remove();
   renderTorneo();
@@ -1943,7 +1950,9 @@ async function generarImagenFixtureRR(tid){
   const FOOTER_COLOR='#475569';
 
   const S=2,PAD=20,MID=CANVAS_W/2,TEAM_W=185;
-  const HEADER_H=95,BLOCK_PAD=12,FECHA_H=23,ROW_H=30,FF_ROW_H=40,BLOCK_GAP=10,FOOTER_H=30;
+  const hasHorario=Boolean(t.horario);
+  const HEADER_H=hasHorario?110:95; // 110 si hay 2 líneas de subtítulo
+  const BLOCK_PAD=12,FECHA_H=23,ROW_H=30,FF_ROW_H=40,BLOCK_GAP=10,FOOTER_H=30;
 
   const faseP=(t.partidos||[]).filter(p=>p.esFase);
   const rondas=[...new Set(faseP.map(p=>p.ronda))].sort((a,b)=>a-b);
@@ -1987,13 +1996,20 @@ async function generarImagenFixtureRR(tid){
   ctx.fillText(trTxt(nombre,CANVAS_W-PAD*2),MID,44);
 
   // Subtítulo — 13px #94a3b8, marginTop 6
-  const sub=['Round Robin',t.fecha].filter(Boolean).join(' · ');
   ctx.font='13px Arial,sans-serif';ctx.fillStyle=TEXT_SUBTITLE;
-  ctx.fillText(sub,MID,63);
+  if(hasHorario){
+    const sub1=['Round Robin',t.fecha].filter(Boolean).join(' · ');
+    ctx.fillText(sub1,MID,63);
+    ctx.fillText(t.horario,MID,79);
+  } else {
+    const sub1=['Round Robin',t.fecha].filter(Boolean).join(' · ');
+    ctx.fillText(sub1,MID,63);
+  }
 
-  // Separador — 1px #334155, marginTop 16
+  // Separador — 1px #334155
+  const sepY=hasHorario?94:79;
   ctx.strokeStyle=SEP_COLOR;ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(PAD,79);ctx.lineTo(CANVAS_W-PAD,79);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(PAD,sepY);ctx.lineTo(CANVAS_W-PAD,sepY);ctx.stroke();
 
   // ── Rondas ──
   let y=HEADER_H;
