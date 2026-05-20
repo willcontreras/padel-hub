@@ -860,12 +860,14 @@ function _renderTorneoDetalle(t,canEdit){
       const uids=t.equipoUids?.[r.nombre]||[];
       const parts=r.nombre.includes(' - ')?r.nombre.split(' - '):[r.nombre];
       const parejaIdx=t.jugadores.indexOf(r.nombre);
+      const _rn=r.nombre.replace(/'/g,"\\'");
       const nameHTML=parts.map((p,pi)=>{
         const uid=uids[pi];
         const nombre=_apodoCorto(p.trim());
         const linkedName=uid?`<span onclick="verJugador('${uid}')" class="player-linked">${nombre}</span>`:`<span>${nombre}</span>`;
         const vincBtn=canEdit?`<span onclick="vincularJugadorNonGrupo('${t.id}',${parejaIdx},${pi})" style="cursor:pointer;font-size:11px;opacity:${uid?'1':'0.3'};color:${uid?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}" title="${uid?'Vinculado · click para desvincular':'Vincular a usuario'}">👤</span>`:'';
-        return linkedName+vincBtn;
+        const editBtn=canEdit&&parejaIdx>=0?`<button onclick="editarIntegrantePareja('${t.id}','${_rn}',${pi})" style="background:none;border:none;cursor:pointer;font-size:10px;padding:0;opacity:0.3" title="Editar nombre">✏️</button>`:'';
+        return linkedName+vincBtn+editBtn;
       }).join(' <span style="color:var(--color-text-secondary,#888780);font-size:10px">—</span> ');
       const dif=r.gamesA-r.gamesB;
       const difStr=(dif>0?'+':'')+dif;
@@ -882,7 +884,6 @@ function _renderTorneoDetalle(t,canEdit){
         <td style="padding:7px 4px;font-size:12px;color:var(--color-text-primary,#1a1a18);font-weight:${isTop2?'600':'400'}">
           <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
             ${nameHTML}
-            ${canEdit&&parejaIdx>=0?`<button onclick="editarNombreParejaDirecta('${t.id}',${parejaIdx})" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0;opacity:0.3" title="Editar nombre">✏️</button>`:''}
           </div>
         </td>
         <td style="padding:7px 4px;text-align:center;color:var(--color-text-secondary,#888780)">${r.pj}</td>
@@ -1045,14 +1046,16 @@ function _renderTorneoDetalle(t,canEdit){
         const players=name.includes(' - ')?name.split(' - '):[name];
         const p1=_apodoCorto(players[0]?.trim()), p2=players[1]?_apodoCorto(players[1].trim()):null;
         const uid1=uids[0]||null, uid2=uids[1]||null;
+        const _gnm=name.replace(/'/g,"\\'");
         h+=`<div style="display:flex;align-items:center;gap:6px;padding:5px 7px;background:rgba(0,0,0,0.04);border-radius:5px;margin-bottom:3px">
           <div style="flex:1;font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18);display:flex;align-items:center;gap:6px">
             ${uid1?`<span onclick="verJugador('${uid1}')" class="player-linked" title="Ver perfil de ${p1}">${p1}</span>`:`<span>${p1}</span>`}
             ${canEdit?`<span onclick="vincularJugadorPareja('${t.id}','${gr.letra}',${pi},0)" style="cursor:pointer;font-size:11px;opacity:${uid1?'1':'0.35'};color:${uid1?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}" title="${uid1?'Vinculado · click para desvincular':'Vincular a usuario de la app'}">👤</span>`:''}
+            ${canEdit?`<button onclick="editarIntegrantePareja('${t.id}','${_gnm}',0,'${gr.letra}')" style="background:none;border:none;cursor:pointer;font-size:10px;padding:0;opacity:0.3" title="Editar nombre">✏️</button>`:''}
             ${p2?`<span style="color:var(--color-text-secondary,#888780);font-size:11px">—</span>${uid2?`<span onclick="verJugador('${uid2}')" class="player-linked" title="Ver perfil de ${p2}">${p2}</span>`:`<span>${p2}</span>`}`:''}
             ${p2&&canEdit?`<span onclick="vincularJugadorPareja('${t.id}','${gr.letra}',${pi},1)" style="cursor:pointer;font-size:11px;opacity:${uid2?'1':'0.35'};color:${uid2?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}" title="${uid2?'Vinculado · click para desvincular':'Vincular a usuario de la app'}">👤</span>`:''}
+            ${p2&&canEdit?`<button onclick="editarIntegrantePareja('${t.id}','${_gnm}',1,'${gr.letra}')" style="background:none;border:none;cursor:pointer;font-size:10px;padding:0;opacity:0.3" title="Editar nombre">✏️</button>`:''}
           </div>
-          ${canEdit?`<button onclick="editarNombrePareja('${t.id}','${gr.letra}',${pi})" style="background:none;border:none;cursor:pointer;font-size:12px;padding:1px 3px;opacity:0.4" title="Editar nombre">✏️</button>`:''}
         </div>`;
       });
       h+=`</div>`;
@@ -1109,15 +1112,17 @@ function _renderTorneoDetalle(t,canEdit){
         const uid1=uids[0]||null,uid2=uids[1]||null;
         h+=`<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(0,0,0,0.04);border-radius:7px">`;
         h+=`<div style="flex:1;font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18);display:flex;align-items:center;gap:5px">`;
+        const _nrn=nombre.replace(/'/g,"\\'");
         h+=uid1?`<span onclick="verJugador('${uid1}')" class="player-linked" title="Ver perfil de ${p1}">${p1}</span>`:`<span>${p1}</span>`;
         h+=`<span onclick="vincularJugadorNonGrupo('${t.id}',${pi},0)" style="cursor:pointer;font-size:11px;opacity:${uid1?'1':'0.35'};color:${uid1?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}" title="${uid1?'Vinculado · click para desvincular':'Vincular a usuario de la app'}">👤</span>`;
+        h+=`<button onclick="editarIntegrantePareja('${t.id}','${_nrn}',0)" style="background:none;border:none;cursor:pointer;font-size:10px;padding:0;opacity:0.3" title="Editar nombre">✏️</button>`;
         if(p2){
           h+=`<span style="color:var(--color-text-secondary,#888780);font-size:11px">—</span>`;
           h+=uid2?`<span onclick="verJugador('${uid2}')" class="player-linked" title="Ver perfil de ${p2}">${p2}</span>`:`<span>${p2}</span>`;
           h+=`<span onclick="vincularJugadorNonGrupo('${t.id}',${pi},1)" style="cursor:pointer;font-size:11px;opacity:${uid2?'1':'0.35'};color:${uid2?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'}" title="${uid2?'Vinculado · click para desvincular':'Vincular a usuario de la app'}">👤</span>`;
+          h+=`<button onclick="editarIntegrantePareja('${t.id}','${_nrn}',1)" style="background:none;border:none;cursor:pointer;font-size:10px;padding:0;opacity:0.3" title="Editar nombre">✏️</button>`;
         }
         h+=`</div>`;
-        h+=`<button onclick="editarNombreParejaDirecta('${t.id}',${pi})" style="background:none;border:none;cursor:pointer;font-size:12px;padding:1px 3px;opacity:0.4" title="Editar nombre">✏️</button>`;
         h+=`</div>`;
       });
       h+=`</div></div>`;
@@ -2506,6 +2511,56 @@ async function vincularJugadorNonGrupo(tid, parejaIdx, playerIdx){
   const players=nombre.includes(' - ')?nombre.split(' - '):nombre.includes(' / ')?nombre.split(' / '):[nombre];
   const playerName=(players[playerIdx]||players[0]).trim();
   _mostrarModalVincular(t,nombre,users,playerIdx,playerName);
+}
+
+// ── Editar integrante individual dentro de una pareja ──
+function _renameParejaEnTorneo(t,vieja,nueva,grupoLetra){
+  // jugadores[]
+  const ji=(t.jugadores||[]).indexOf(vieja);if(ji>=0)t.jugadores[ji]=nueva;
+  // grupos members
+  if(grupoLetra){const gr=t.grupos?.find(g=>g.letra===grupoLetra);const mi=gr?.members.indexOf(vieja)??-1;if(mi>=0)gr.members[mi]=nueva;}
+  else{(t.grupos||[]).forEach(gr=>{const mi=gr.members.indexOf(vieja);if(mi>=0)gr.members[mi]=nueva;});}
+  // partidos, faseFinal, playoffs
+  (t.partidos||[]).forEach(p=>{if(p.eq1===vieja)p.eq1=nueva;if(p.eq2===vieja)p.eq2=nueva;});
+  (t.faseFinal||[]).forEach(m=>{if(m.eq1===vieja)m.eq1=nueva;if(m.eq2===vieja)m.eq2=nueva;});
+  (t.playoffs||[]).forEach(m=>{if(m.eq1===vieja)m.eq1=nueva;if(m.eq2===vieja)m.eq2=nueva;});
+  // equipoUids
+  if(t.equipoUids?.[vieja]!==undefined){t.equipoUids[nueva]=t.equipoUids[vieja];delete t.equipoUids[vieja];}
+  // pagos
+  if(t.pagos?.[vieja]!==undefined){t.pagos[nueva]=t.pagos[vieja];delete t.pagos[vieja];}
+  // desempates (keys: "nom1_nom2", values: winner name)
+  if(t.desempates){const nd={};Object.entries(t.desempates).forEach(([k,v])=>{const nk=k.split('_').map(n=>n===vieja?nueva:n).join('_');nd[nk]=v===vieja?nueva:v;});t.desempates=nd;}
+}
+async function editarIntegrantePareja(tid,parejaNombre,playerIdx,grupoLetra){
+  const t=userData.torneos?.find(x=>x.id===tid);if(!t)return;
+  const players=parejaNombre.includes(' - ')?parejaNombre.split(' - '):[parejaNombre];
+  const nombreActual=(players[playerIdx]||'').trim();
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;z-index:9900;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  overlay.innerHTML=`<div style="background:var(--color-background-primary,#fff);border-radius:16px;padding:20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2)" onclick="event.stopPropagation()">
+    <div style="font-size:15px;font-weight:700;color:var(--color-text-primary,#1a1a18);margin-bottom:12px">Editar jugador</div>
+    <input id="m-eip-inp" type="text" value="${nombreActual.replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;padding:8px 10px;font-size:14px;font-family:inherit;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a18)"/>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-p" style="flex:1" id="m-eip-ok">Guardar</button>
+      <button class="btn" id="m-eip-cancel">Cancelar</button>
+    </div>
+  </div>`;
+  const _close=()=>overlay.remove();
+  overlay.onclick=_close;
+  document.body.appendChild(overlay);
+  const inp=document.getElementById('m-eip-inp');inp.focus();inp.select();
+  document.getElementById('m-eip-cancel').onclick=_close;
+  const _save=async()=>{
+    const nuevo=inp.value.trim();
+    if(!nuevo){toast('El nombre no puede estar vacío');return;}
+    players[playerIdx]=nuevo;
+    const nuevaPareja=players.join(' - ');
+    if(nuevaPareja===parejaNombre){_close();return;}
+    _renameParejaEnTorneo(t,parejaNombre,nuevaPareja,grupoLetra||null);
+    await saveData();_close();renderTorneo();toast('Nombre actualizado');
+  };
+  document.getElementById('m-eip-ok').onclick=_save;
+  inp.onkeydown=e=>{if(e.key==='Enter')_save();if(e.key==='Escape')_close();};
 }
 
 // ── Editar nombre de pareja en formatos sin grupos ──
