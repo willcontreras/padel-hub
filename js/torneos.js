@@ -451,6 +451,7 @@ function _pm(label,teamA,teamB,matchId,tid){
   const colorA=jugado?(winA?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'):'var(--color-text-primary,#1a1a18)';
   const colorB=jugado?(winB?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'):'var(--color-text-primary,#1a1a18)';
   const clickable=matchId&&tid&&!jugado&&teamA!=='\u2014'&&teamB!=='\u2014';
+  const editable=matchId&&tid&&jugado&&!!m&&teamA!=='\u2014'&&teamB!=='\u2014';
   const canchaStr=m?.cancha?`<div style="font-size:9px;font-weight:600;color:var(--bl,#378ADD);letter-spacing:0.5px;text-align:center;margin-bottom:3px">\ud83c\udfbe Cancha ${m.cancha}</div>`:'';
   return `<div style="margin-bottom:7px">
     <div style="font-size:12px;font-weight:600;color:var(--am,#BA7517);letter-spacing:0.5px;margin-bottom:4px">${label}</div>
@@ -459,7 +460,7 @@ function _pm(label,teamA,teamB,matchId,tid){
       onclick="${clickable?`abrirResultadoPlayoff('${tid||''}','${matchId||''}')`:''}"
       title="${clickable?'Cargar resultado':''}">
       <div style="text-align:right;font-size:13px;font-weight:600;color:${colorA}">${winA?'<span style="color:var(--g,#1D9E75)">\u2713 </span>':''}${_apodoCorto(teamA)}</div>
-      <div style="font-size:13px;font-weight:700;color:var(--am,#BA7517);text-align:center;min-width:40px;line-height:1.2">${jugado?`${m.s1a}-${m.s1b}`:'VS'}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--am,#BA7517);text-align:center;min-width:40px;display:flex;flex-direction:column;align-items:center;gap:1px">${jugado?`${m.s1a}-${m.s1b}`:'VS'}${editable?`<button onclick="abrirResultadoPlayoff('${tid||''}','${matchId||''}')" style="background:none;border:none;cursor:pointer;font-size:9px;padding:0 2px;opacity:0.5;font-family:inherit;line-height:1" title="Editar resultado">\u270f\ufe0f</button>`:''}</div>
       <div style="text-align:left;font-size:13px;font-weight:600;color:${colorB}">${_apodoCorto(teamB)}${winB?'<span style="color:var(--g,#1D9E75)"> \u2713</span>':''}</div>
     </div>
   </div>`;
@@ -546,6 +547,7 @@ function _renderPartidoRR(p,t,canEdit){
   const winA=jugado&&p.ganadorA,winB=jugado&&!p.ganadorA;
   const canchaStr=p.cancha?`C${p.cancha}`:'';
   const puedeCargar=canEdit&&!jugado&&p.eq1&&!p.eq1.includes('°');
+  const puedeEditar=canEdit&&jugado&&p.eq1&&!p.eq1.includes('°');
   const esFinal=p.esFinal;
   return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--color-background-primary,#fff);border-radius:9px;border:0.5px solid ${esFinal?'#BA751733':'var(--color-border-tertiary,#e5e4df)'};margin-bottom:5px;${puedeCargar?'cursor:pointer':''}${jugado?';opacity:.85':''}" ${puedeCargar?`onclick="_abrirResultadoRR('${t.id}','${p.id}')"`:''}
     onmouseover="${puedeCargar?"this.style.background='var(--color-background-secondary,#f1efe8)'":''}"
@@ -557,7 +559,7 @@ function _renderPartidoRR(p,t,canEdit){
       <span style="font-size:12px;color:${winB?'var(--g,#1D9E75)':winA?'var(--color-text-secondary,#888780)':'var(--color-text-primary,#1a1a18)'};font-weight:${winB?'600':'400'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">${_apodoCorto(p.eq2)}</span>
     </div>
     ${!jugado&&puedeCargar?`<span style="font-size:10px;color:var(--color-text-secondary,#888780);flex-shrink:0">+ resultado</span>`:''}
-    ${jugado?`<span style="font-size:10px;color:var(--g,#1D9E75);flex-shrink:0">✓</span>`:''}
+    ${jugado?(puedeEditar?`<span style="display:flex;align-items:center;gap:2px;flex-shrink:0"><span style="font-size:10px;color:var(--g,#1D9E75)">✓</span><button onclick="_abrirResultadoRR('${t.id}','${p.id}')" style="background:none;border:none;cursor:pointer;font-size:10px;padding:1px 2px;opacity:0.5;line-height:1" title="Editar resultado">✏️</button></span>`:`<span style="font-size:10px;color:var(--g,#1D9E75);flex-shrink:0">✓</span>`):''}
   </div>`;
 }
 
@@ -572,17 +574,17 @@ async function _abrirResultadoRR(tid,partidoId){
   sheet.onclick=e=>{if(e.target===sheet)sheet.remove();};
   sheet.innerHTML=`<div style="background:var(--color-background-primary,#fff);border-radius:18px 18px 0 0;padding:20px 18px 32px;width:100%;max-width:600px;box-sizing:border-box">
     <div style="width:36px;height:4px;border-radius:2px;background:var(--color-border-secondary,#d3d1c7);margin:0 auto 16px"></div>
-    <div style="font-size:14px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">Resultado</div>
+    <div style="font-size:14px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">${p.jugado?'Editar resultado':'Resultado'}</div>
     <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:14px">${_apodoCorto(p.eq1)} vs ${_apodoCorto(p.eq2)}</div>
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:16px">
       <div style="text-align:center">
         <div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18);margin-bottom:6px">${_apodoCorto(p.eq1)}</div>
-        <input type="number" id="rr-s1a" min="0" max="99" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/>
+        <input type="number" id="rr-s1a" min="0" max="99" value="${p.jugado&&p.s1a!=null?p.s1a:''}" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/>
       </div>
       <div style="font-size:14px;font-weight:700;color:var(--color-text-secondary,#888780);text-align:center">VS</div>
       <div style="text-align:center">
         <div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18);margin-bottom:6px">${_apodoCorto(p.eq2)}</div>
-        <input type="number" id="rr-s1b" min="0" max="99" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/>
+        <input type="number" id="rr-s1b" min="0" max="99" value="${p.jugado&&p.s1b!=null?p.s1b:''}" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/>
       </div>
     </div>
     <div style="display:flex;gap:8px">
@@ -698,14 +700,14 @@ async function _abrirResultadoFF(tid,matchId){
   sheet.onclick=e=>{if(e.target===sheet)sheet.remove();};
   sheet.innerHTML=`<div style="background:var(--color-background-primary,#fff);border-radius:18px 18px 0 0;padding:20px 18px 32px;width:100%;max-width:600px;box-sizing:border-box">
     <div style="width:36px;height:4px;border-radius:2px;background:var(--color-border-secondary,#d3d1c7);margin:0 auto 16px"></div>
-    <div style="font-size:14px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">${p.label||'Resultado'}</div>
+    <div style="font-size:14px;font-weight:600;color:var(--color-text-primary,#1a1a18);margin-bottom:4px">${p.jugado?'Editar resultado':p.label||'Resultado'}</div>
     <div style="font-size:12px;color:var(--color-text-secondary,#888780);margin-bottom:14px">${_apodoCorto(p.eq1)} vs ${_apodoCorto(p.eq2)}</div>
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:16px">
       <div style="text-align:center"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18);margin-bottom:6px">${_apodoCorto(p.eq1)}</div>
-        <input type="number" id="rr-s1a" min="0" max="99" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/></div>
+        <input type="number" id="rr-s1a" min="0" max="99" value="${p.jugado&&p.s1a!=null?p.s1a:''}" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/></div>
       <div style="font-size:14px;font-weight:700;color:var(--color-text-secondary,#888780);text-align:center">VS</div>
       <div style="text-align:center"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a18);margin-bottom:6px">${_apodoCorto(p.eq2)}</div>
-        <input type="number" id="rr-s1b" min="0" max="99" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/></div>
+        <input type="number" id="rr-s1b" min="0" max="99" value="${p.jugado&&p.s1b!=null?p.s1b:''}" placeholder="0" inputmode="numeric" style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary,#e5e4df);border-radius:8px;font-size:22px;font-weight:600;text-align:center;font-family:inherit;background:var(--color-background-secondary,#f1efe8);box-sizing:border-box"/></div>
     </div>
     <div style="display:flex;gap:8px">
       <button onclick="guardarResultadoFF('${tid}','${matchId}',this.closest('div[style*=fixed]'))" style="flex:1;background:var(--g,#1D9E75);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Guardar</button>
@@ -932,6 +934,7 @@ function _renderTorneoDetalle(t,canEdit){
       t.faseFinal.forEach(p=>{
         const jug=p.jugado,wA=jug&&p.ganadorA,wB=jug&&!p.ganadorA;
         const puedeCargar=canEdit&&!jug;
+        const puedeEditar=canEdit&&jug;
         const cA=jug?(wA?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'):'var(--color-text-primary,#1a1a18)';
         const cB=jug?(wB?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'):'var(--color-text-primary,#1a1a18)';
         const canchaStr=p.cancha?`<div style="font-size:9px;font-weight:600;color:var(--bl,#378ADD);letter-spacing:0.5px;text-align:center;margin-bottom:3px">🎾 Cancha ${p.cancha}</div>`:'';
@@ -941,7 +944,7 @@ function _renderTorneoDetalle(t,canEdit){
           <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:4px;background:rgba(128,128,128,0.06);border-radius:8px;padding:10px;cursor:${puedeCargar?'pointer':'default'};${puedeCargar?'border:0.5px dashed rgba(186,117,23,.4)':''}"
             onclick="${puedeCargar?`_abrirResultadoFF('${t.id}','${p.id}')`:''}" title="${puedeCargar?'Cargar resultado':''}">
             <div style="text-align:right;font-size:13px;font-weight:600;color:${cA}">${wA?'✓ ':''}${_apodoCorto(p.eq1)}</div>
-            <div style="font-size:13px;font-weight:700;color:var(--am,#BA7517);text-align:center;min-width:40px">${jug?`${p.s1a}-${p.s1b}`:'VS'}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--am,#BA7517);text-align:center;min-width:40px;display:flex;flex-direction:column;align-items:center;gap:1px">${jug?`${p.s1a}-${p.s1b}`:'VS'}${puedeEditar?`<button onclick="_abrirResultadoFF('${t.id}','${p.id}')" style="background:none;border:none;cursor:pointer;font-size:9px;padding:0 2px;opacity:0.5;font-family:inherit;line-height:1" title="Editar resultado">✏️</button>`:''}</div>
             <div style="text-align:left;font-size:13px;font-weight:600;color:${cB}">${_apodoCorto(p.eq2)}${wB?' ✓':''}</div>
           </div>
         </div>`;
@@ -1081,7 +1084,7 @@ function _renderTorneoDetalle(t,canEdit){
           const cA=p.jugado?(wA?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'):'var(--color-text-primary,#1a1a18)';
           const cB=p.jugado?(wB?'var(--g,#1D9E75)':'var(--color-text-secondary,#888780)'):'var(--color-text-primary,#1a1a18)';
           const canchaBadge=p.cancha?`<div style="font-size:9px;font-weight:600;color:var(--bl,#378ADD);letter-spacing:0.5px;text-align:center;padding:1px 0 3px;opacity:0.85">🎾 Cancha ${p.cancha}</div>`:'';
-          h+=`<div style="border-bottom:0.5px solid rgba(128,128,128,0.1)">${canchaBadge}<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:2px;padding:${p.cancha?'2px':'5px'} 6px 5px;cursor:${p.jugado?'default':'pointer'}" onclick="${!p.jugado?`abrirResultado('${t.id}','${p.id}')`:''}" title="${!p.jugado?'Cargar resultado':''}"><div style="text-align:right;font-size:13px;font-weight:600;color:${cA}">${_apodoCorto(p.eq1)}${wA?' \u2713':''}</div><div style="font-size:11px;font-weight:700;color:var(--am,#BA7517);text-align:center;min-width:22px">${p.jugado?p.s1a+'-'+p.s1b:'VS'}</div><div style="text-align:left;font-size:13px;font-weight:600;color:${cB}">${wB?'\u2713 ':''}${_apodoCorto(p.eq2)}</div></div></div>`;});
+          h+=`<div style="border-bottom:0.5px solid rgba(128,128,128,0.1)">${canchaBadge}<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:2px;padding:${p.cancha?'2px':'5px'} 6px 5px;cursor:pointer" onclick="abrirResultado('${t.id}','${p.id}')" title="${p.jugado?'Editar resultado':'Cargar resultado'}"><div style="text-align:right;font-size:13px;font-weight:600;color:${cA}">${_apodoCorto(p.eq1)}${wA?' \u2713':''}</div><div style="font-size:11px;font-weight:700;color:var(--am,#BA7517);text-align:center;min-width:22px;display:flex;flex-direction:column;align-items:center;gap:1px">${p.jugado?p.s1a+'-'+p.s1b:'VS'}${p.jugado?'<span style="font-size:8px;opacity:0.45;line-height:1">\u270f\ufe0f</span>':''}</div><div style="text-align:left;font-size:13px;font-weight:600;color:${cB}">${wB?'\u2713 ':''}${_apodoCorto(p.eq2)}</div></div></div>`;});
         h+=`</div>`;
       });
       h+=`</div>`;
@@ -1597,11 +1600,12 @@ async function borrarFotoTorneo(tid,tipo){
 function abrirResultadoPlayoff(tid,mid){
   const t=userData.torneos?.find(x=>x.id===tid);
   const m=t?.playoffs?.find(x=>x.id===mid);
-  if(!m||m.jugado)return;
+  if(!m)return;
   curResultadoTorneoId=tid;curResultadoPartidoId='playoff:'+mid;
   document.getElementById('mr-equipos').textContent=m.eq1+'  vs  '+m.eq2;
   document.getElementById('mr-lbl-a').textContent=m.eq1;document.getElementById('mr-lbl-b').textContent=m.eq2;
-  document.getElementById('mr-sa').value='';document.getElementById('mr-sb').value='';
+  document.getElementById('mr-sa').value=m.jugado&&m.s1a!=null?m.s1a:'';document.getElementById('mr-sb').value=m.jugado&&m.s1b!=null?m.s1b:'';
+  const tEl=document.querySelector('#m-resultado .modal-title');if(tEl)tEl.textContent=m.jugado?'Editar resultado':'Cargar resultado';
   openModal('m-resultado');
 }
 function abrirResultado(tid,pid){
@@ -1611,7 +1615,8 @@ function abrirResultado(tid,pid){
   curResultadoPartidoId=pid;curResultadoTorneoId=tid;
   document.getElementById('mr-equipos').textContent=p.eq1+'  vs  '+p.eq2;
   document.getElementById('mr-lbl-a').textContent=p.eq1;document.getElementById('mr-lbl-b').textContent=p.eq2;
-  document.getElementById('mr-sa').value='';document.getElementById('mr-sb').value='';
+  document.getElementById('mr-sa').value=p.jugado&&p.s1a!=null?p.s1a:'';document.getElementById('mr-sb').value=p.jugado&&p.s1b!=null?p.s1b:'';
+  const tEl=document.querySelector('#m-resultado .modal-title');if(tEl)tEl.textContent=p.jugado?'Editar resultado':'Cargar resultado';
   openModal('m-resultado');
 }
 async function guardarResultado(){
