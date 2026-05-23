@@ -602,7 +602,6 @@ async function guardarResultadoRR(tid,partidoId,sheet){
   const a=parseInt(document.getElementById('rr-s1a')?.value);
   const b=parseInt(document.getElementById('rr-s1b')?.value);
   if(isNaN(a)||isNaN(b)){toast('Ingresa el resultado');return;}
-  if(a===b){toast('No puede terminar empatado');return;}
   p.s1a=a;p.s1b=b;p.jugado=true;p.ganadorA=a>b;
 
   // Si es partido de fase, actualizar finales con clasificados reales
@@ -722,7 +721,6 @@ async function guardarResultadoFF(tid,matchId,sheet){
   const a=parseInt(document.getElementById('rr-s1a')?.value);
   const b=parseInt(document.getElementById('rr-s1b')?.value);
   if(isNaN(a)||isNaN(b)){toast('Ingresa el resultado');return;}
-  if(a===b){toast('No puede terminar empatado');return;}
   p.s1a=a;p.s1b=b;p.jugado=true;p.ganadorA=a>b;
   await saveData();sheet?.remove();renderTorneo();toast('Resultado guardado');
 }
